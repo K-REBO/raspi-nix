@@ -1,0 +1,15 @@
+# Claude Code
+.claude/
+
+# ローカル設定ファイル (WiFi パスワードなど)
+configuration.local.nix
+secrets.local.nix
+
+# Nix ビルド結果
+result
+result-*
+
+# その他
+*.swp
+*~
+.DS_Store
