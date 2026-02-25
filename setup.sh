@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# Obsidian Self-Hosted LiveSync セットアップスクリプト
-# このスクリプトは Raspberry Pi 上で実行してください
+# Obsidian Self-Hosted LiveSync 初回セットアップウィザード
+#
+# このスクリプトはホストマシン (x86_64) で実行してください
+#
+# セットアップフロー:
+#   1. 前提条件チェック
+#   2. 初回デプロイ (クロスビルド + deploy-rs)
+#   3. Raspberry Pi で init.sh 実行 (SSH 経由)
+#   4. 設定ファイルの更新 (サービス有効化)
+#   5. 再デプロイ (サービス起動)
 
 set -euo pipefail
 
@@ -9,361 +17,240 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # スクリプトのディレクトリ
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SECRETS_DIR="${SCRIPT_DIR}/secrets"
+PI_HOSTNAME="${PI_HOSTNAME:-nixpi}"
+PI_USER="${PI_USER:-rpi}"
 
 # ヘルパー関数
 info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}ℹ️  [INFO]${NC} $1"
 }
 
 success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}✅ [SUCCESS]${NC} $1"
 }
 
 warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}⚠️  [WARNING]${NC} $1"
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}❌ [ERROR]${NC} $1"
     exit 1
 }
 
 prompt() {
-    echo -e "${GREEN}[PROMPT]${NC} $1"
+    echo -e "${CYAN}❓ [PROMPT]${NC} $1"
+}
+
+header() {
+    echo
+    echo -e "${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BOLD}${BLUE}  $1${NC}"
+    echo -e "${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo
 }
 
 # 前提条件チェック
 check_prerequisites() {
-    info "前提条件をチェックしています..."
+    header "前提条件チェック"
 
     # Nix が利用可能か
     if ! command -v nix &> /dev/null; then
-        error "Nix が見つかりません。NixOS 環境で実行してください。"
+        error "Nix が見つかりません。https://nixos.org/download.html からインストールしてください。"
     fi
+    success "Nix が見つかりました"
 
-    # age が利用可能か
-    if ! command -v age &> /dev/null; then
-        error "age が見つかりません。まず基本設定をデプロイしてください。"
+    # flake が有効か
+    if ! nix flake show &> /dev/null; then
+        error "flake が無効か、flake.nix に問題があります。"
     fi
+    success "flake.nix が有効です"
 
-    # cloudflared が利用可能か
-    if ! command -v cloudflared &> /dev/null; then
-        error "cloudflared が見つかりません。まず基本設定をデプロイしてください。"
-    fi
-
-    # jq が利用可能か
-    if ! command -v jq &> /dev/null; then
-        error "jq が見つかりません。まず基本設定をデプロイしてください。"
-    fi
-
-    # SSH ホストキーが存在するか
-    if [ ! -f /etc/ssh/ssh_host_ed25519_key.pub ]; then
-        error "SSH ホストキーが見つかりません。"
-    fi
-
-    success "全ての前提条件を満たしています。"
-}
-
-# ユーザー入力の収集
-collect_user_input() {
-    info "CouchDB の設定を入力してください..."
-    echo
-
-    # CouchDB 管理者ユーザー名
-    prompt "CouchDB 管理者ユーザー名 (デフォルト: admin):"
-    read -r COUCHDB_USER
-    COUCHDB_USER="${COUCHDB_USER:-admin}"
-
-    # CouchDB 管理者パスワード
-    while true; do
-        prompt "CouchDB 管理者パスワード (最低12文字):"
-        read -rs COUCHDB_PASSWORD
+    # SSH 接続を確認
+    info "Raspberry Pi への SSH 接続を確認しています..."
+    if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "${PI_USER}@${PI_HOSTNAME}" "exit" &> /dev/null; then
+        warning "Raspberry Pi に接続できません。"
+        warning "事前に SSH 公開鍵認証を設定してください:"
+        echo "  ssh-copy-id ${PI_USER}@${PI_HOSTNAME}"
         echo
-        prompt "パスワードを再入力してください:"
-        read -rs COUCHDB_PASSWORD_CONFIRM
-        echo
+        prompt "SSH 設定が完了したら Enter を押してください..."
+        read -r
 
-        if [ "${COUCHDB_PASSWORD}" != "${COUCHDB_PASSWORD_CONFIRM}" ]; then
-            warning "パスワードが一致しません。再入力してください。"
-            continue
+        # 再確認
+        if ! ssh -o ConnectTimeout=5 "${PI_USER}@${PI_HOSTNAME}" "exit"; then
+            error "Raspberry Pi に接続できません。セットアップを中断します。"
         fi
+    fi
+    success "Raspberry Pi に接続できました (${PI_USER}@${PI_HOSTNAME})"
 
-        if [ ${#COUCHDB_PASSWORD} -lt 12 ]; then
-            warning "パスワードは最低12文字必要です。"
-            continue
-        fi
-
-        break
-    done
-
-    # CouchDB データベース名
-    prompt "CouchDB データベース名 (デフォルト: obsidian):"
-    read -r COUCHDB_DATABASE
-    COUCHDB_DATABASE="${COUCHDB_DATABASE:-obsidian}"
-
-    # データ保存パス
-    prompt "データ保存パス (デフォルト: /mnt/data/couchdb):"
-    read -r DATA_DIR
-    DATA_DIR="${DATA_DIR:-/mnt/data/couchdb}"
-
-    echo
-    success "設定を収集しました:"
-    echo "  ユーザー名: ${COUCHDB_USER}"
-    echo "  データベース名: ${COUCHDB_DATABASE}"
-    echo "  データパス: ${DATA_DIR}"
     echo
 }
 
-# Cloudflare Tunnel の作成
-create_cloudflare_tunnel() {
-    info "Cloudflare Tunnel を作成します..."
+# 初回デプロイ
+initial_deploy() {
+    header "ステップ 1/5: 初回デプロイ"
+
+    info "Raspberry Pi に基本設定をデプロイします..."
+    info "この処理には数分かかる場合があります。"
     echo
 
-    TUNNEL_NAME="obsidian-livesync-$(date +%s)"
+    if nix run github:serokell/deploy-rs -- ".#${PI_HOSTNAME}"; then
+        success "初回デプロイが完了しました"
+    else
+        error "デプロイに失敗しました。エラーを確認してください。"
+    fi
 
-    warning "ブラウザで Cloudflare 認証を行います。"
-    warning "ヘッドレス環境の場合、SSH ポートフォワーディングを使用してください:"
-    warning "  ssh -L 8080:localhost:8080 rpi@nixpi"
+    echo
+}
+
+# リポジトリを Raspberry Pi にコピー
+copy_repo_to_pi() {
+    header "ステップ 2/5: リポジトリを Raspberry Pi にコピー"
+
+    info "リポジトリを Raspberry Pi にコピーしています..."
+
+    # リモートディレクトリを作成
+    ssh "${PI_USER}@${PI_HOSTNAME}" "mkdir -p ~/projects"
+
+    # rsync でコピー
+    if rsync -avz --exclude '.git' --exclude '.claude' --exclude 'result' \
+        "${SCRIPT_DIR}/" "${PI_USER}@${PI_HOSTNAME}:~/projects/raspi-nix/"; then
+        success "リポジトリをコピーしました"
+    else
+        error "リポジトリのコピーに失敗しました"
+    fi
+
+    echo
+}
+
+# Raspberry Pi で init.sh を実行
+run_init_on_pi() {
+    header "ステップ 3/5: Raspberry Pi で初期設定"
+
+    info "Raspberry Pi で init.sh を実行します..."
+    info "対話的な入力が必要です (CouchDB パスワードなど)"
     echo
 
-    prompt "Enterキーを押して認証を開始してください..."
+    prompt "準備ができたら Enter を押してください..."
     read -r
 
-    # Cloudflare 認証
-    if ! cloudflared tunnel login; then
-        error "Cloudflare 認証に失敗しました。"
-    fi
-
-    success "Cloudflare 認証が完了しました。"
-    echo
-
-    # Tunnel 作成
-    info "Tunnel '${TUNNEL_NAME}' を作成しています..."
-    if ! cloudflared tunnel create "${TUNNEL_NAME}"; then
-        error "Tunnel の作成に失敗しました。"
-    fi
-
-    # Tunnel ID を取得
-    TUNNEL_ID=$(cloudflared tunnel list | grep "${TUNNEL_NAME}" | awk '{print $1}')
-    if [ -z "${TUNNEL_ID}" ]; then
-        error "Tunnel ID の取得に失敗しました。"
-    fi
-
-    success "Tunnel が作成されました:"
-    echo "  名前: ${TUNNEL_NAME}"
-    echo "  ID: ${TUNNEL_ID}"
-    echo
-
-    # Credentials ファイルのパスを取得
-    CREDS_FILE="${HOME}/.cloudflared/${TUNNEL_ID}.json"
-    if [ ! -f "${CREDS_FILE}" ]; then
-        error "Credentials ファイルが見つかりません: ${CREDS_FILE}"
-    fi
-
-    success "Credentials ファイルを取得しました: ${CREDS_FILE}"
-}
-
-# シークレットの暗号化
-encrypt_secrets() {
-    info "シークレットを暗号化しています..."
-    echo
-
-    # システム SSH ホストキーの取得
-    SYSTEM_HOST_KEY=$(sudo cat /etc/ssh/ssh_host_ed25519_key.pub)
-    if [ -z "${SYSTEM_HOST_KEY}" ]; then
-        error "システム SSH ホストキーの取得に失敗しました。"
-    fi
-
-    success "システム SSH ホストキーを取得しました。"
-
-    # secrets.nix の更新
-    info "secrets.nix を更新しています..."
-    cat > "${SECRETS_DIR}/secrets.nix" <<EOF
-# このファイルは setup.sh によって自動生成されました
-# 手動編集は推奨されません
-
-let
-  # ユーザーSSH公開鍵
-  userKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHurSJOCksQe93WR+fEYP9MiyJXNcnrz58hG0mRZOMHM";
-
-  # システムSSH ホストキー
-  systemKey = "${SYSTEM_HOST_KEY}";
-
-  # 全ての許可キー
-  allKeys = [ userKey systemKey ];
-in
-{
-  # CouchDB 環境変数
-  "couchdb-env.age".publicKeys = allKeys;
-
-  # Cloudflare Tunnel 認証情報
-  "cloudflared-creds.age".publicKeys = allKeys;
-}
-EOF
-
-    success "secrets.nix を更新しました。"
-
-    # CouchDB 環境変数の暗号化
-    info "CouchDB 環境変数を暗号化しています..."
-    TEMP_ENV_FILE=$(mktemp)
-    cat > "${TEMP_ENV_FILE}" <<EOF
-COUCHDB_USER=${COUCHDB_USER}
-COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
-COUCHDB_DATABASE=${COUCHDB_DATABASE}
-EOF
-
-    # age で暗号化
-    if ! cat "${TEMP_ENV_FILE}" | age -r "${SYSTEM_HOST_KEY}" -o "${SECRETS_DIR}/couchdb-env.age"; then
-        rm -f "${TEMP_ENV_FILE}"
-        error "CouchDB 環境変数の暗号化に失敗しました。"
-    fi
-
-    rm -f "${TEMP_ENV_FILE}"
-    success "CouchDB 環境変数を暗号化しました。"
-
-    # Cloudflare Credentials の暗号化
-    info "Cloudflare Credentials を暗号化しています..."
-    if ! age -r "${SYSTEM_HOST_KEY}" -o "${SECRETS_DIR}/cloudflared-creds.age" "${CREDS_FILE}"; then
-        error "Cloudflare Credentials の暗号化に失敗しました。"
-    fi
-
-    success "Cloudflare Credentials を暗号化しました。"
-    echo
-}
-
-# 設定ファイルの更新
-update_config_files() {
-    info "設定ファイルを更新しています..."
-    echo
-
-    # cloudflared.nix の TUNNEL_ID を更新
-    if grep -q "TUNNEL_ID_PLACEHOLDER" "${SCRIPT_DIR}/modules/cloudflared.nix"; then
-        sed -i "s/TUNNEL_ID_PLACEHOLDER/${TUNNEL_ID}/g" "${SCRIPT_DIR}/modules/cloudflared.nix"
-        success "cloudflared.nix の Tunnel ID を更新しました。"
+    # SSH 経由で init.sh を実行
+    if ssh -t "${PI_USER}@${PI_HOSTNAME}" "cd ~/projects/raspi-nix && chmod +x init.sh && ./init.sh"; then
+        success "init.sh が正常に完了しました"
     else
-        warning "cloudflared.nix の Tunnel ID は既に設定されています。"
+        error "init.sh の実行に失敗しました"
     fi
 
-    # データパスがデフォルトと異なる場合、obsidian-livesync.nix を更新
-    if [ "${DATA_DIR}" != "/mnt/data/couchdb" ]; then
-        # この場合は configuration.nix で上書きが必要
-        warning "データパスがデフォルトと異なります。"
-        warning "configuration.nix に以下を追加してください:"
-        echo "  services.obsidian-livesync.dataDir = \"${DATA_DIR}\";"
-        echo
-    fi
+    echo
 }
 
-# DNS 設定の指示
-show_dns_instructions() {
-    info "DNS 設定が必要です。"
+# 設定ファイルを同期
+sync_config_from_pi() {
+    header "ステップ 4/5: 設定ファイルの同期"
+
+    info "Raspberry Pi から設定ファイルを取得しています..."
+
+    # secrets/ と modules/ を同期
+    rsync -avz "${PI_USER}@${PI_HOSTNAME}:~/projects/raspi-nix/secrets/" "${SCRIPT_DIR}/secrets/"
+    rsync -avz "${PI_USER}@${PI_HOSTNAME}:~/projects/raspi-nix/modules/" "${SCRIPT_DIR}/modules/"
+
+    success "設定ファイルを同期しました"
     echo
-    echo "以下のいずれかの方法で CNAME レコードを追加してください:"
+}
+
+# サービスを有効化
+enable_services() {
+    header "ステップ 5/5: サービスの有効化"
+
+    info "configuration.nix でサービスを有効化しています..."
+
+    # configuration.nix を編集
+    sed -i 's/services.obsidian-livesync.enable = false;/services.obsidian-livesync.enable = true;/' "${SCRIPT_DIR}/configuration.nix"
+    sed -i 's/services.obsidian-tunnel.enable = false;/services.obsidian-tunnel.enable = true;/' "${SCRIPT_DIR}/configuration.nix"
+
+    success "サービスを有効化しました"
     echo
-    echo "【方法1】Cloudflare ダッシュボード:"
-    echo "  タイプ: CNAME"
-    echo "  名前: obsidian"
-    echo "  値: ${TUNNEL_ID}.cfargotunnel.com"
-    echo "  TTL: Auto"
-    echo
-    echo "【方法2】自動設定 (推奨):"
-    echo "  cloudflared tunnel route dns ${TUNNEL_ID} obsidian.bido.dev"
+}
+
+# 最終デプロイ
+final_deploy() {
+    header "最終デプロイ"
+
+    info "サービスを起動するために再デプロイします..."
+    info "この処理には数分かかる場合があります。"
     echo
 
-    prompt "自動設定を実行しますか? (y/N):"
-    read -r AUTO_DNS
-
-    if [[ "${AUTO_DNS}" =~ ^[Yy]$ ]]; then
-        info "DNS レコードを自動設定しています..."
-        if cloudflared tunnel route dns "${TUNNEL_ID}" obsidian.bido.dev; then
-            success "DNS レコードを設定しました。"
-        else
-            warning "DNS レコードの自動設定に失敗しました。手動で設定してください。"
-        fi
+    if nix run github:serokell/deploy-rs -- ".#${PI_HOSTNAME}"; then
+        success "最終デプロイが完了しました"
     else
-        warning "DNS レコードを手動で設定してください。"
+        error "デプロイに失敗しました"
     fi
+
     echo
 }
 
-# NixOS リビルド
-nixos_rebuild() {
-    info "NixOS 設定を適用します。"
-    echo
+# 完了メッセージ
+show_completion() {
+    header "セットアップ完了! 🎉"
 
-    prompt "nixos-rebuild switch を実行しますか? (y/N):"
-    read -r DO_REBUILD
-
-    if [[ "${DO_REBUILD}" =~ ^[Yy]$ ]]; then
-        info "NixOS をリビルドしています (時間がかかる場合があります)..."
-        if sudo nixos-rebuild switch --flake "${SCRIPT_DIR}#nixpi"; then
-            success "NixOS のリビルドが完了しました。"
-        else
-            error "NixOS のリビルドに失敗しました。"
-        fi
-    else
-        warning "後で手動で以下を実行してください:"
-        echo "  cd ${SCRIPT_DIR}"
-        echo "  sudo nixos-rebuild switch --flake .#nixpi"
-    fi
+    echo -e "${GREEN}${BOLD}Obsidian Self-Hosted LiveSync のセットアップが完了しました!${NC}"
     echo
-}
-
-# 検証手順の表示
-show_verification_steps() {
-    success "セットアップが完了しました!"
+    echo "次のステップ:"
     echo
-    info "以下のコマンドで動作を確認してください:"
-    echo
-    echo "【1】Docker コンテナの確認:"
+    echo "【1】サービスの確認:"
+    echo "  ssh ${PI_USER}@${PI_HOSTNAME}"
     echo "  docker ps | grep obsidian-livesync"
-    echo "  docker logs docker-obsidian-livesync"
+    echo "  systemctl status cloudflared-tunnel-*"
     echo
-    echo "【2】CouchDB ローカル接続テスト:"
-    echo "  curl http://localhost:5984"
-    echo "  curl -u ${COUCHDB_USER}:****** http://localhost:5984/_all_dbs"
-    echo
-    echo "【3】Cloudflare Tunnel の確認:"
-    echo "  systemctl status cloudflared-tunnel-${TUNNEL_ID}"
-    echo "  cloudflared tunnel info ${TUNNEL_ID}"
-    echo
-    echo "【4】外部アクセステスト (DNS反映後):"
+    echo "【2】外部アクセステスト:"
     echo "  curl https://obsidian.bido.dev"
-    echo "  curl -u ${COUCHDB_USER}:****** https://obsidian.bido.dev/_all_dbs"
     echo
-    echo "【5】Obsidian プラグイン設定:"
+    echo "【3】Obsidian プラグイン設定:"
     echo "  - Community Plugins から 'Self-hosted LiveSync' をインストール"
     echo "  - Remote Database URL: https://obsidian.bido.dev"
-    echo "  - Username: ${COUCHDB_USER}"
-    echo "  - Password: (setup時に設定したパスワード)"
-    echo "  - Database name: ${COUCHDB_DATABASE}"
+    echo "  - Username/Password: init.sh で設定した値"
+    echo
+    echo "詳細は README.md を参照してください。"
     echo
 }
 
 # メイン処理
 main() {
+    clear
     echo
-    echo "=========================================="
-    echo "  Obsidian Self-Hosted LiveSync Setup"
-    echo "=========================================="
+    echo -e "${BOLD}${CYAN}╔════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BOLD}${CYAN}║                                                    ║${NC}"
+    echo -e "${BOLD}${CYAN}║   Obsidian Self-Hosted LiveSync Setup Wizard      ║${NC}"
+    echo -e "${BOLD}${CYAN}║                                                    ║${NC}"
+    echo -e "${BOLD}${CYAN}╚════════════════════════════════════════════════════╝${NC}"
     echo
+
+    info "このウィザードは Raspberry Pi に Obsidian LiveSync をセットアップします"
+    info "処理には 10-15 分程度かかります"
+    echo
+
+    prompt "続行しますか? (y/N): "
+    read -r CONTINUE
+    if [[ ! "${CONTINUE}" =~ ^[Yy]$ ]]; then
+        info "セットアップを中断しました"
+        exit 0
+    fi
 
     check_prerequisites
-    collect_user_input
-    create_cloudflare_tunnel
-    encrypt_secrets
-    update_config_files
-    show_dns_instructions
-    nixos_rebuild
-    show_verification_steps
-
-    success "全ての処理が完了しました!"
+    initial_deploy
+    copy_repo_to_pi
+    run_init_on_pi
+    sync_config_from_pi
+    enable_services
+    final_deploy
+    show_completion
 }
 
 # スクリプト実行
-main
+main "$@"

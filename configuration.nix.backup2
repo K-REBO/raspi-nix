@@ -171,46 +171,6 @@
   ];
 
   # sudo でパスワード不要（wheel グループ）
-
-  # ===========================================
-  # MOTD (Message of the Day) 設定
-  # ===========================================
-
-  # SSH ログイン時に表示される MOTD スクリプト
-  environment.etc."profile.d/motd.sh" = {
-    text = ''
-      # SSH 接続時のみ表示 (ローカルログインでは表示しない)
-      if [ -n "$SSH_CONNECTION" ] && [ -z "$MOTD_SHOWN" ]; then
-        export MOTD_SHOWN=1
-
-        # システム情報を取得
-        HOSTNAME=$(hostname)
-        BUILD_DATE=$(date -r /run/current-system '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "Unknown")
-        UPTIME=$(uptime -p)
-        NIXOS_VERSION=$(nixos-version 2>/dev/null || echo "NixOS")
-
-        # CPU温度 (Raspberry Pi)
-        CPU_TEMP=$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null | awk '{printf "%.1f°C", $1/1000}' || echo "N/A")
-
-        # メモリ使用量
-        MEM_INFO=$(free -h | awk '/^Mem:/ {printf "%s / %s", $3, $2}')
-
-        echo ""
-        echo "╔════════════════════════════════════════════════╗"
-        echo "║         Welcome to NixOS Raspberry Pi          ║"
-        echo "╚════════════════════════════════════════════════╝"
-        echo ""
-        echo "  Hostname:     $HOSTNAME"
-        echo "  NixOS:        $NIXOS_VERSION"
-        echo "  Last build:   $BUILD_DATE"
-        echo "  Uptime:       $UPTIME"
-        echo "  CPU temp:     $CPU_TEMP"
-        echo "  Memory:       $MEM_INFO"
-        echo ""
-      fi
-    '';
-    mode = "0555";
-  };
   security.sudo.wheelNeedsPassword = false;
 
   # システムバージョン

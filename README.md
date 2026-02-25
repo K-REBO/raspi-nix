@@ -60,108 +60,83 @@ imports = [
 
 ## セットアップ手順
 
-### フェーズ1: ホストマシンでの準備
+### 簡単セットアップ (推奨)
 
-1. **依存関係のインストール** (Nix がインストール済みの場合):
-   ```bash
-   nix develop
-   ```
+初回セットアップウィザードを使用すると、全ての手順が自動化されます:
 
-2. **flake.lock の更新**:
-   ```bash
-   cd /home/bido/projects/raspi-nix
-   nix flake update
-   ```
+```bash
+cd /home/bido/projects/raspi-nix
+./setup.sh
+```
 
-3. **クロスビルド確認**:
-   ```bash
-   nix build .#nixosConfigurations.nixpi.config.system.build.toplevel
-   ```
+ウィザードが以下を自動的に実行します:
+1. ✅ 前提条件チェック
+2. ✅ 初回デプロイ (クロスビルド)
+3. ✅ リポジトリを Raspberry Pi にコピー
+4. ✅ Raspberry Pi で初期設定 (SSH 経由で `init.sh` 実行)
+5. ✅ 設定ファイルの同期
+6. ✅ サービスの有効化
+7. ✅ 最終デプロイ (サービス起動)
 
-4. **Raspberry Pi に初期デプロイ**:
-   ```bash
-   deploy .#nixpi
-   ```
+**所要時間**: 10-15分程度
 
-### フェーズ2: Raspberry Pi でのセットアップ
+---
 
-1. **SSH 接続**:
-   ```bash
-   ssh rpi@nixpi
-   ```
+### 手動セットアップ (上級者向け)
 
-2. **リポジトリをクローン**:
+ウィザードを使わず手動でセットアップする場合:
 
-   setup.sh を実行するには、リポジトリ全体が必要です。以下のいずれかの方法でクローンしてください:
+#### ステップ1: ホストマシンで初回デプロイ
 
-   **方法1: Git でクローン (推奨)**
-   ```bash
-   mkdir -p ~/projects
-   cd ~/projects
-   git clone <your-repo-url> raspi-nix
-   ```
+```bash
+cd /home/bido/projects/raspi-nix
+nix run github:serokell/deploy-rs -- .#nixpi
+```
 
-   **方法2: ホストマシンから rsync でコピー**
+#### ステップ2: Raspberry Pi で初期設定
 
-   ホストマシンで実行:
-   ```bash
-   rsync -avz --exclude '.git' --exclude '.claude' \
-     /home/bido/projects/raspi-nix/ rpi@nixpi:~/projects/raspi-nix/
-   ```
+```bash
+# SSH 接続
+ssh rpi@nixpi
 
-3. **リポジトリへ移動**:
-   ```bash
-   cd ~/projects/raspi-nix
-   ```
+# リポジトリをコピー (ホストマシンから)
+# または git clone
 
-3. **セットアップスクリプト実行**:
-   ```bash
-   ./setup.sh
-   ```
+# 初期設定スクリプト実行
+cd ~/projects/raspi-nix
+./init.sh
+```
 
-   スクリプトは以下を実行します:
-   - CouchDB の設定を対話的に収集
-   - Cloudflare Tunnel を作成 (ブラウザ認証)
-   - シークレットを agenix で暗号化
-   - 設定ファイルを更新
-   - DNS レコードを設定 (オプション)
-   - NixOS をリビルド (オプション)
+`init.sh` は以下を実行します:
+- CouchDB の設定 (ユーザー名、パスワード、データベース名)
+- Cloudflare Tunnel の作成
+- シークレットの暗号化 (agenix)
+- 設定ファイルの更新 (Tunnel ID など)
+- DNS レコードの設定
 
-4. **ヘッドレス環境の場合** (GUI がない場合):
+**ヘッドレス環境の場合**:
+別のターミナルで SSH ポートフォワーディング:
+```bash
+ssh -L 8080:localhost:8080 rpi@nixpi
+```
 
-   別のターミナルで SSH ポートフォワーディング:
-   ```bash
-   ssh -L 8080:localhost:8080 rpi@nixpi
-   ```
+#### ステップ3: ホストマシンで設定を同期・有効化
 
-   その後、ローカルブラウザで `http://localhost:8080` を開いて Cloudflare 認証を完了。
+```bash
+# 設定ファイルを同期
+rsync -avz rpi@nixpi:~/projects/raspi-nix/secrets/ ./secrets/
+rsync -avz rpi@nixpi:~/projects/raspi-nix/modules/ ./modules/
 
-5. **サービスの有効化**:
+# サービスを有効化 (configuration.nix を編集)
+vim configuration.nix
+# services.obsidian-livesync.enable = true;
+# services.obsidian-tunnel.enable = true;
 
-   setup.sh を実行してシークレットを設定した後、`configuration.nix` を編集してサービスを有効化します:
+# 再デプロイ
+nix run github:serokell/deploy-rs -- .#nixpi
+```
 
-   ```bash
-   vim ~/projects/raspi-nix/configuration.nix
-   ```
-
-   以下の行を `false` から `true` に変更:
-   ```nix
-   services.obsidian-livesync.enable = true;
-   services.obsidian-tunnel.enable = true;
-   ```
-
-6. **設定の適用**:
-
-   ```bash
-   sudo nixos-rebuild switch --flake ~/projects/raspi-nix#nixpi
-   ```
-
-   または、ホストマシンから再デプロイ:
-   ```bash
-   nix run github:serokell/deploy-rs -- .#nixpi
-   ```
-
-### フェーズ3: 検証
+### 検証
 
 1. **Docker コンテナ確認**:
    ```bash
@@ -212,7 +187,8 @@ imports = [
 │   ├── couchdb-env.age           # 暗号化された CouchDB 環境変数
 │   ├── cloudflared-creds.age     # 暗号化された tunnel credentials
 │   └── .gitignore                # シークレットファイルを git から除外
-├── setup.sh                      # セットアップスクリプト
+├── setup.sh                      # 初回セットアップウィザード (ホストマシンで実行)
+├── init.sh                       # 初期設定スクリプト (Raspberry Pi で実行)
 └── README.md                     # このファイル
 ```
 

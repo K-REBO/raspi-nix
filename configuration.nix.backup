@@ -123,38 +123,14 @@
     depends = [ "/mnt/hdd" ];
   };
 
-  # ===========================================
-  # Nix 設定
-  # ===========================================
-  nix.settings = {
-    # 実験的機能を有効化
-    experimental-features = [ "nix-command" "flakes" ];
+  # Nix ビルドを tmpfs 上で実行（メモリに余裕がある場合）
+  nix.settings.build-dir = "/tmp";
 
-    # バイナリキャッシュの設定
-    substituters = [
-      "https://cache.nixos.org"
-    ];
+  # ローカルビルドの署名なしパスを受け入れる
+  nix.settings.require-sigs = false;
 
-    trusted-public-keys = [
-      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-    ];
-
-    # セキュリティ: 署名検証を有効化
-    require-sigs = true;  # false から変更
-
-    # 信頼されたユーザー (署名なしローカルビルドを許可)
-    trusted-users = [ "root" "@wheel" ];
-
-    # Raspberry Pi 4B の最適化 (4コア、4GBメモリ)
-    max-jobs = 2;  # メモリ不足を防ぐため制限
-    cores = 2;     # 各ジョブで2コア使用
-
-    # ビルドディレクトリ (既存設定を維持)
-    build-dir = "/tmp";
-
-    # ストア最適化
-    auto-optimise-store = true;
-  };
+  # Flakes と nix-command を有効化
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
   # ===========================================
   # 基本パッケージ
@@ -171,46 +147,6 @@
   ];
 
   # sudo でパスワード不要（wheel グループ）
-
-  # ===========================================
-  # MOTD (Message of the Day) 設定
-  # ===========================================
-
-  # SSH ログイン時に表示される MOTD スクリプト
-  environment.etc."profile.d/motd.sh" = {
-    text = ''
-      # SSH 接続時のみ表示 (ローカルログインでは表示しない)
-      if [ -n "$SSH_CONNECTION" ] && [ -z "$MOTD_SHOWN" ]; then
-        export MOTD_SHOWN=1
-
-        # システム情報を取得
-        HOSTNAME=$(hostname)
-        BUILD_DATE=$(date -r /run/current-system '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "Unknown")
-        UPTIME=$(uptime -p)
-        NIXOS_VERSION=$(nixos-version 2>/dev/null || echo "NixOS")
-
-        # CPU温度 (Raspberry Pi)
-        CPU_TEMP=$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null | awk '{printf "%.1f°C", $1/1000}' || echo "N/A")
-
-        # メモリ使用量
-        MEM_INFO=$(free -h | awk '/^Mem:/ {printf "%s / %s", $3, $2}')
-
-        echo ""
-        echo "╔════════════════════════════════════════════════╗"
-        echo "║         Welcome to NixOS Raspberry Pi          ║"
-        echo "╚════════════════════════════════════════════════╝"
-        echo ""
-        echo "  Hostname:     $HOSTNAME"
-        echo "  NixOS:        $NIXOS_VERSION"
-        echo "  Last build:   $BUILD_DATE"
-        echo "  Uptime:       $UPTIME"
-        echo "  CPU temp:     $CPU_TEMP"
-        echo "  Memory:       $MEM_INFO"
-        echo ""
-      fi
-    '';
-    mode = "0555";
-  };
   security.sudo.wheelNeedsPassword = false;
 
   # システムバージョン
