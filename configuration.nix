@@ -53,6 +53,9 @@
     useRoutingFeatures = "both";  # クライアントとサブネットルーター両方として動作
   };
 
+  # 汎用的な動的リンクバイナリをサポート (Claude Code など)
+  programs.nix-ld.enable = true;
+
   # Docker 有効化
   virtualisation.docker.enable = true;
   virtualisation.oci-containers.backend = "docker";
