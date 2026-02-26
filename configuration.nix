@@ -5,6 +5,7 @@
 
   # モジュールのインポート
   imports = [
+    (if builtins.pathExists ./configuration.local.nix then ./configuration.local.nix else {})
     ./modules/obsidian-livesync.nix
     ./modules/cloudflared.nix
   ];
@@ -26,6 +27,7 @@
     extraGroups = [ "wheel" "docker" ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHurSJOCksQe93WR+fEYP9MiyJXNcnrz58hG0mRZOMHM"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHurSJOCksQe93WR+fEYP9MiyJXNcnrz58hG0mRZOMHM bido@nixos"
     ];
   };
 
