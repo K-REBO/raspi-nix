@@ -60,7 +60,7 @@ spinner_start() {
 }
 spinner_stop() {
   kill "$SPINNER_PID" 2>/dev/null
-  wait "$SPINNER_PID" 2>/dev/null
+  wait "$SPINNER_PID" 2>/dev/null || true
   echo -en "\r\033[2K"
 }
 
@@ -283,6 +283,23 @@ fi
 sync
 echo ""
 ok "書き込み完了!"
+
+# ext4 64bit フィーチャーを無効化 (U-Boot との互換性)
+# NixOS が生成する ext4 はデフォルトで 64bit が有効になっており
+# Raspberry Pi の U-Boot がカーネルを読めなくなるため無効化する
+if [[ "$SD_DEV" == *"mmcblk"* ]] || [[ "$SD_DEV" == *"nvme"* ]]; then
+  ROOT_PART="${SD_DEV}p2"
+else
+  ROOT_PART="${SD_DEV}2"
+fi
+
+echo ""
+spinner_start "ext4 64bit フィーチャーを無効化中 (U-Boot 互換性修正)..."
+sudo e2fsck -fy "$ROOT_PART" &>/tmp/e2fsck.log || true
+sudo resize2fs -s "$ROOT_PART" &>/tmp/resize2fs.log || true
+sudo e2fsck -fy "$ROOT_PART" &>/tmp/e2fsck2.log || true
+spinner_stop
+ok "U-Boot 互換性修正完了"
 
 # ══════════════════════════════════════════════════
 # STEP 7: known_hosts の更新
