@@ -62,7 +62,10 @@
 
   environment.systemPackages = with pkgs; [ bun git nodejs pnpm deno ];
 
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings = {
+    experimental-features = [ "nix-command" "flakes" ];
+    trusted-users = [ "root" "rpi" ];
+  };
 
   system.stateVersion = "24.11";
 }

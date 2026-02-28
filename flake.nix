@@ -45,7 +45,7 @@
         path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.nixpi;
 
         # リモートビルドを無効化 (x86_64 でクロスビルド)
-        remoteBuild = false;
+        remoteBuild = true;
 
         # ターゲットが cache.nixos.org からダウンロード
         fastConnection = false;
