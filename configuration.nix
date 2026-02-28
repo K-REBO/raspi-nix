@@ -3,7 +3,6 @@
 {
   imports = [
     ./modules/obsidian-livesync.nix
-    ./modules/cloudflared.nix
   ];
 
   networking.hostName = "nixpi";
@@ -41,9 +40,27 @@
   virtualisation.docker.enable = true;
   virtualisation.oci-containers.backend = "docker";
 
-  # Obsidian LiveSync / Cloudflared (secrets 設定後に enable = true にする)
+  # Obsidian LiveSync (secrets 設定後に enable = true にする)
   services.obsidian-livesync.enable = false;
-  services.obsidian-tunnel.enable = false;
+
+  # Cloudflare Tunnel (tc.bido.dev)
+  age.secrets.cloudflared-token = {
+    file = ./secrets/cloudflared-token.age;
+  };
+
+  systemd.services.cloudflared = {
+    description = "Cloudflare Tunnel";
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.cloudflared}/bin/cloudflared tunnel --no-autoupdate run --token-file ${config.age.secrets.cloudflared-token.path}";
+      Restart = "always";
+      RestartSec = "10s";
+    };
+  };
+
+  environment.systemPackages = with pkgs; [ bun ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 

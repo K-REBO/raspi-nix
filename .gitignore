@@ -9,6 +9,10 @@ secrets.local.nix
 result
 result-*
 
+# SDカードマウントポイント
+wizards/sda*/
+wizards/mnt*/
+
 # その他
 *.swp
 *~
