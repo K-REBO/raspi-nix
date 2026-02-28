@@ -99,21 +99,21 @@
   fileSystems."/mnt/hdd" = {
     device = "/dev/disk/by-uuid/026d7d92-b4b2-4c8a-a78a-2263850fdfd1";
     fsType = "ext4";
-    options = [ "defaults" "noatime" ];
+    options = [ "defaults" "noatime" "nofail" ];
   };
 
   # データ保管用パーティション (~1.5TB)
   fileSystems."/mnt/data" = {
     device = "/dev/disk/by-uuid/60554cf5-4654-4cef-bca5-4524c6997636";
     fsType = "ext4";
-    options = [ "defaults" "noatime" ];
+    options = [ "defaults" "noatime" "nofail" ];
   };
 
   # /var をHDDにバインドマウント
   fileSystems."/var" = {
     device = "/mnt/hdd/var";
     fsType = "none";
-    options = [ "bind" ];
+    options = [ "bind" "nofail" ];
     depends = [ "/mnt/hdd" ];
   };
 
@@ -121,7 +121,7 @@
   fileSystems."/home" = {
     device = "/mnt/hdd/home";
     fsType = "none";
-    options = [ "bind" ];
+    options = [ "bind" "nofail" ];
     depends = [ "/mnt/hdd" ];
   };
 
