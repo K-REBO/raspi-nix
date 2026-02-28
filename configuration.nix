@@ -48,13 +48,27 @@
     file = ./secrets/cloudflared-token.age;
   };
 
+  # ingressルール設定 (config.yml)
+  environment.etc."cloudflared/config.yml".text = ''
+    ingress:
+      - hostname: tc.bido.dev
+        path: /reservation*
+        service: http://localhost:5173
+      - hostname: tc.bido.dev
+        path: /studio-assignment*
+        service: http://localhost:5174
+      - hostname: tc.bido.dev
+        service: http_status:404
+      - service: http_status:404
+  '';
+
   systemd.services.cloudflared = {
     description = "Cloudflare Tunnel";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
-      ExecStart = "${pkgs.bash}/bin/sh -c 'exec ${pkgs.cloudflared}/bin/cloudflared tunnel --no-autoupdate run --token \"$(cat ${config.age.secrets.cloudflared-token.path})\"'";
+      ExecStart = "${pkgs.bash}/bin/sh -c 'exec ${pkgs.cloudflared}/bin/cloudflared --config /etc/cloudflared/config.yml tunnel --no-autoupdate run --token \"$(cat ${config.age.secrets.cloudflared-token.path})\"'";
       Restart = "always";
       RestartSec = "10s";
     };
