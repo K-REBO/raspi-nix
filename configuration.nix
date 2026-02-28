@@ -60,7 +60,7 @@
     };
   };
 
-  environment.systemPackages = with pkgs; [ bun ];
+  environment.systemPackages = with pkgs; [ bun git nodejs pnpm deno ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
