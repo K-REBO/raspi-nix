@@ -43,6 +43,16 @@
   # Obsidian LiveSync (secrets 設定後に enable = true にする)
   services.obsidian-livesync.enable = false;
 
+  # WiFi
+  age.secrets.wifi-env = {
+    file = ./secrets/wifi-env.age;
+  };
+  networking.wireless = {
+    enable = true;
+    secretsFile = config.age.secrets.wifi-env.path;
+    networks."JCOM_RDGN".pskRaw = "ext:PSK_JCOM_RDGN";
+  };
+
   # Cloudflare Tunnel (tc.bido.dev)
   age.secrets.cloudflared-token = {
     file = ./secrets/cloudflared-token.age;

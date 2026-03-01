@@ -20,4 +20,7 @@ in
 
   # Cloudflare Tunnel Token
   "cloudflared-token.age".publicKeys = allKeys;
+
+  # WiFi パスワード (networking.wireless.environmentFile 用)
+  "wifi-env.age".publicKeys = allKeys;
 }

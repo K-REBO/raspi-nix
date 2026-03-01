@@ -38,7 +38,7 @@
 
     # deploy-rs 設定
     deploy.nodes.nixpi = {
-      hostname = "192.168.40.89";
+      hostname = "192.168.40.116";
       profiles.system = {
         user = "root";
         sshUser = "rpi";
