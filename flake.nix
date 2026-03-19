@@ -6,10 +6,12 @@
     # バイナリキャッシュの設定
     extra-substituters = [
       "https://cache.nixos.org"
+      "https://nix-community.cachix.org"
     ];
 
     extra-trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
     ];
 
     # ビルド最適化 (x86_64 ホストマシン用)
@@ -38,7 +40,7 @@
 
     # deploy-rs 設定
     deploy.nodes.nixpi = {
-      hostname = "192.168.40.116";
+      hostname = "nixpi";
       profiles.system = {
         user = "root";
         sshUser = "rpi";
