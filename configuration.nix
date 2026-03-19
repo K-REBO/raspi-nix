@@ -3,6 +3,8 @@
 {
   imports = [
     ./modules/obsidian-livesync.nix
+    ./modules/minecraft-bedrock.nix
+    ./modules/minecraft-discord-bot.nix
   ];
 
   networking.hostName = "nixpi";
@@ -40,8 +42,52 @@
   virtualisation.docker.enable = true;
   virtualisation.oci-containers.backend = "docker";
 
-  # Obsidian LiveSync (secrets 設定後に enable = true にする)
-  services.obsidian-livesync.enable = false;
+  # Obsidian LiveSync
+  services.obsidian-livesync.enable = true;
+  services.obsidian-livesync.dataDir = "/mnt/disk/couchdb";
+
+  # 外付けストレージ: SD カード保護のため書き込み頻度の高いデータを配置
+  # nofail: デバイス不在でも起動継続
+  # x-systemd.device-timeout=5: デバイス検出を最大5秒待つ（タイムアウト後は諦めて起動）
+  fileSystems."/mnt/disk" = {
+    device  = "/dev/sda1";
+    fsType  = "ext4";
+    options = [
+      "nofail"
+      "x-systemd.device-timeout=5"
+      "noatime"
+    ];
+  };
+
+  fileSystems."/mnt/2disk" = {
+    device  = "/dev/sda2";
+    fsType  = "ext4";
+    options = [
+      "nofail"
+      "x-systemd.device-timeout=5"
+      "noatime"
+    ];
+  };
+
+  # Minecraft Discord Webhook Bot
+  age.secrets.discord-webhook = {
+    file = ./secrets/discord-webhook.age;
+  };
+
+  services.minecraft-discord-bot = {
+    enable             = true;
+    webhookSecretFile  = config.age.secrets.discord-webhook.path;
+  };
+
+  # Minecraft Bedrock Server + playit.gg トンネル
+  services.minecraft-bedrock = {
+    enable        = true;
+    serverName    = "nixpi Bedrock";
+    maxPlayers    = 10;
+    gamemode      = "survival";
+    difficulty    = "normal";
+    playit.enable = true;
+  };
 
   # WiFi
   age.secrets.wifi-env = {
@@ -54,6 +100,7 @@
   };
 
   # Cloudflare Tunnel (tc.bido.dev)
+  # Tunnel ID: 6f0e6b36-3a09-4904-b769-6e5ebce6d2c1
   age.secrets.cloudflared-token = {
     file = ./secrets/cloudflared-token.age;
   };
@@ -61,6 +108,8 @@
   # ingressルール設定 (config.yml)
   environment.etc."cloudflared/config.yml".text = ''
     ingress:
+      - hostname: obsidian.bido.dev
+        service: http://localhost:5984
       - hostname: tc.bido.dev
         path: /reservation*
         service: http://localhost:5173
