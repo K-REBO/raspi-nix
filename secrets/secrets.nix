@@ -23,4 +23,10 @@ in
 
   # WiFi パスワード (networking.wireless.environmentFile 用)
   "wifi-env.age".publicKeys = allKeys;
+
+  # playit.gg tunnel secret token
+  "playit-secret.age".publicKeys = allKeys;
+
+  # Discord Webhook URL (Minecraft通知用)
+  "discord-webhook.age".publicKeys = allKeys;
 }
