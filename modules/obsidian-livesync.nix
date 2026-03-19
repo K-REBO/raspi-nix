@@ -62,8 +62,8 @@ in
 
     # systemd サービスの依存関係設定
     systemd.services.docker-obsidian-livesync = {
-      requires = [ "mnt-data.mount" ];
-      after = [ "mnt-data.mount" "docker.service" ];
+      requires = [ "mnt-disk.mount" ];
+      after = [ "mnt-disk.mount" "docker.service" ];
 
       serviceConfig = {
         Restart = "always";
