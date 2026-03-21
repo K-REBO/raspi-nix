@@ -56,7 +56,7 @@ in
 
       # 依存関係: データディレクトリのマウント完了を待つ
       extraOptions = [
-        "--pull=always"
+        "--pull=missing"
       ];
     };
 

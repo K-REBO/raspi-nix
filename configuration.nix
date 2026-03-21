@@ -3,8 +3,6 @@
 {
   imports = [
     ./modules/obsidian-livesync.nix
-    ./modules/minecraft-bedrock.nix
-    ./modules/minecraft-discord-bot.nix
   ];
 
   networking.hostName = "nixpi";
@@ -22,6 +20,9 @@
     enable = true;
     settings.PasswordAuthentication = false;
   };
+
+  # sshdをOOMキラーから保護（メモリ逼迫時もSSH接続を維持するため）
+  systemd.services.sshd.serviceConfig.OOMScoreAdjust = -500;
 
   security.sudo.wheelNeedsPassword = false;
 
@@ -67,26 +68,6 @@
       "x-systemd.device-timeout=5"
       "noatime"
     ];
-  };
-
-  # Minecraft Discord Webhook Bot
-  age.secrets.discord-webhook = {
-    file = ./secrets/discord-webhook.age;
-  };
-
-  services.minecraft-discord-bot = {
-    enable             = true;
-    webhookSecretFile  = config.age.secrets.discord-webhook.path;
-  };
-
-  # Minecraft Bedrock Server + playit.gg トンネル
-  services.minecraft-bedrock = {
-    enable        = true;
-    serverName    = "nixpi Bedrock";
-    maxPlayers    = 10;
-    gamemode      = "survival";
-    difficulty    = "normal";
-    playit.enable = true;
   };
 
   # WiFi
