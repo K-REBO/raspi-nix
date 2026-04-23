@@ -61,28 +61,27 @@
   # Obsidian LiveSync バックアップ CLI
   services.obsidian-livesync-backup.enable = true;
 
-  # 外付けストレージ: SD カード保護のため書き込み頻度の高いデータを配置
-  # nofail: デバイス不在でも起動継続
-  # x-systemd.device-timeout=30: USB ドライブの認識遅延に対応するため30秒待つ
-  fileSystems."/mnt/disk" = {
-    device  = "/dev/sda1";
-    fsType  = "ext4";
-    options = [
-      "nofail"
-      "x-systemd.device-timeout=30"
-      "noatime"
-    ];
-  };
-
-  fileSystems."/mnt/2disk" = {
-    device  = "/dev/sda2";
-    fsType  = "ext4";
-    options = [
-      "nofail"
-      "x-systemd.device-timeout=30"
-      "noatime"
-    ];
-  };
+  # 外付けストレージ: systemd.mounts を使って静的ユニットを nix ストアに生成する
+  # fileSystems (fstab 経由) だと switch-to-configuration-ng がランタイム生成ユニットを
+  # nix ストアで探して失敗するため、静的ユニットを直接生成する方式に変更
+  systemd.mounts = [
+    {
+      description = "External storage /mnt/disk";
+      what = "/dev/sda1";
+      where = "/mnt/disk";
+      type = "ext4";
+      options = "nofail,x-systemd.device-timeout=30,noatime";
+      wantedBy = [ "local-fs.target" ];
+    }
+    {
+      description = "External storage /mnt/2disk";
+      what = "/dev/sda2";
+      where = "/mnt/2disk";
+      type = "ext4";
+      options = "nofail,x-systemd.device-timeout=30,noatime";
+      wantedBy = [ "local-fs.target" ];
+    }
+  ];
 
   # WiFi
   age.secrets.wifi-env = {
