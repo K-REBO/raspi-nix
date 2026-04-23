@@ -33,8 +33,6 @@ in
   config = lib.mkIf cfg.enable {
     systemd.tmpfiles.rules = [
       "d ${cfg.cliDir}   0755 rpi rpi -"
-      "d ${cfg.dbDir}    0755 rpi rpi -"
-      "d ${cfg.outputDir} 0755 rpi rpi -"
     ];
 
     environment.systemPackages = [
@@ -51,6 +49,8 @@ in
           exit 1
         fi
         SETUP_URI="$1"
+
+        mkdir -p "${cfg.dbDir}"
 
         echo "[1/3] リポジトリ取得..."
         if [ ! -d "${cfg.cliDir}/.git" ]; then
@@ -81,6 +81,8 @@ in
           echo "CLI が未ビルドです。先に livesync-setup <Setup-URI> を実行してください。" >&2
           exit 1
         fi
+
+        mkdir -p "${cfg.dbDir}" "${cfg.outputDir}"
 
         echo "[1/2] sync: リモート CouchDB → ローカル PouchDB"
         ${cli} --verbose sync
