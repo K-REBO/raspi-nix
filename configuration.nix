@@ -3,6 +3,7 @@
 {
   imports = [
     ./modules/obsidian-livesync.nix
+    ./modules/obsidian-livesync-backup.nix
   ];
 
   networking.hostName = "nixpi";
@@ -21,8 +22,17 @@
     settings.PasswordAuthentication = false;
   };
 
-  # sshdをOOMキラーから保護（メモリ逼迫時もSSH接続を維持するため）
-  systemd.services.sshd.serviceConfig.OOMScoreAdjust = -500;
+  # sshdをOOMキラーから保護・ハング検出・自動再起動
+  systemd.services.sshd.serviceConfig = {
+    OOMScoreAdjust = -1000;
+    Restart = "always";
+    RestartSec = "5s";
+    WatchdogSec = "30s";
+  };
+  systemd.services.sshd.unitConfig = {
+    StartLimitIntervalSec = "120s";
+    StartLimitBurst = 5;
+  };
 
   security.sudo.wheelNeedsPassword = false;
 
@@ -30,6 +40,7 @@
   services.tailscale = {
     enable = true;
     useRoutingFeatures = "both";
+    extraUpFlags = [ "--ssh" ];
   };
 
   networking.firewall = {
@@ -47,15 +58,18 @@
   services.obsidian-livesync.enable = true;
   services.obsidian-livesync.dataDir = "/mnt/disk/couchdb";
 
+  # Obsidian LiveSync バックアップ CLI
+  services.obsidian-livesync-backup.enable = true;
+
   # 外付けストレージ: SD カード保護のため書き込み頻度の高いデータを配置
   # nofail: デバイス不在でも起動継続
-  # x-systemd.device-timeout=5: デバイス検出を最大5秒待つ（タイムアウト後は諦めて起動）
+  # x-systemd.device-timeout=30: USB ドライブの認識遅延に対応するため30秒待つ
   fileSystems."/mnt/disk" = {
     device  = "/dev/sda1";
     fsType  = "ext4";
     options = [
       "nofail"
-      "x-systemd.device-timeout=5"
+      "x-systemd.device-timeout=30"
       "noatime"
     ];
   };
@@ -65,7 +79,7 @@
     fsType  = "ext4";
     options = [
       "nofail"
-      "x-systemd.device-timeout=5"
+      "x-systemd.device-timeout=30"
       "noatime"
     ];
   };
@@ -115,6 +129,8 @@
   };
 
   environment.systemPackages = with pkgs; [ bun git nodejs pnpm deno cloudflared ];
+
+  programs.nix-ld.enable = true;
 
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];

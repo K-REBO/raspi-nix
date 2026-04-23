@@ -6,7 +6,7 @@ let
   userKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHurSJOCksQe93WR+fEYP9MiyJXNcnrz58hG0mRZOMHM";
 
   # システムSSH ホストキー (setup.sh で自動設定)
-  systemKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIENLj6dfUbzh6GcOA6STApoVdWLv2ZMLlILBLiH1Zx5d";
+  systemKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFAw5N69TZAM54ymUO/stJUe61v7GyRZnrSP4Gb+DXm8";
 
   # 全ての許可キー
   allKeys = [ userKey systemKey ];
