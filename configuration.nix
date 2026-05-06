@@ -122,7 +122,7 @@
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
-      ExecStart = "${pkgs.bash}/bin/sh -c 'exec ${pkgs.cloudflared}/bin/cloudflared --config /etc/cloudflared/config.yml --metrics 127.0.0.1:8082 tunnel --no-autoupdate run --token \"$(cat ${config.age.secrets.cloudflared-token.path})\"'";
+      ExecStart = "${pkgs.bash}/bin/sh -c 'exec ${pkgs.cloudflared}/bin/cloudflared --config /etc/cloudflared/config.yml --metrics 127.0.0.1:8082 tunnel --no-autoupdate --protocol http2 run --token \"$(cat ${config.age.secrets.cloudflared-token.path})\"'";
       Restart = "always";
       RestartSec = "10s";
     };
