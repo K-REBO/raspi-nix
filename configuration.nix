@@ -4,6 +4,7 @@
   imports = [
     ./modules/obsidian-livesync.nix
     ./modules/obsidian-livesync-backup.nix
+    ./modules/discord-claude.nix
   ];
 
   networking.hostName = "nixpi";
@@ -121,9 +122,39 @@
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
-      ExecStart = "${pkgs.bash}/bin/sh -c 'exec ${pkgs.cloudflared}/bin/cloudflared --config /etc/cloudflared/config.yml tunnel --no-autoupdate run --token \"$(cat ${config.age.secrets.cloudflared-token.path})\"'";
+      ExecStart = "${pkgs.bash}/bin/sh -c 'exec ${pkgs.cloudflared}/bin/cloudflared --config /etc/cloudflared/config.yml --metrics 127.0.0.1:8082 tunnel --no-autoupdate run --token \"$(cat ${config.age.secrets.cloudflared-token.path})\"'";
       Restart = "always";
       RestartSec = "10s";
+    };
+  };
+
+  # cloudflaredのQUIC接続が全断しても自動復旧できるようにヘルスチェックタイマーを追加
+  # プロセス自体は生きているが接続が死んでいる状態を検知して再起動する
+  systemd.services.cloudflared-healthcheck = {
+    description = "Cloudflare Tunnel connection health check";
+    after = [ "cloudflared.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = let
+        script = pkgs.writeShellScript "cloudflared-healthcheck" ''
+          systemctl is-active --quiet cloudflared || exit 0
+          CONNS=$(${pkgs.curl}/bin/curl -sf --max-time 3 http://127.0.0.1:8082/metrics 2>/dev/null \
+            | ${pkgs.gnugrep}/bin/grep '^cloudflared_tunnel_ha_connections' \
+            | ${pkgs.gawk}/bin/awk '{sum += $2} END {print sum+0}')
+          if [ "''${CONNS:-0}" -eq 0 ]; then
+            echo "cloudflared: no active tunnel connections, restarting"
+            systemctl restart cloudflared
+          fi
+        '';
+      in "${script}";
+    };
+  };
+
+  systemd.timers.cloudflared-healthcheck = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "5min";
+      OnUnitActiveSec = "5min";
     };
   };
 
@@ -135,6 +166,8 @@
     experimental-features = [ "nix-command" "flakes" ];
     trusted-users = [ "root" "rpi" ];
   };
+
+  services.discord-claude.enable = true;
 
   system.stateVersion = "24.11";
 }
