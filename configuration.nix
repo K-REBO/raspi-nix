@@ -4,7 +4,7 @@
   imports = [
     ./modules/obsidian-livesync.nix
     ./modules/obsidian-livesync-backup.nix
-    ./modules/llama-server.nix
+    # ./modules/llama-server.nix
     ./modules/web-interface.nix
     ./modules/daily-note-scheduler.nix
   ];
@@ -58,7 +58,7 @@
   services.obsidian-livesync.dataDir = "/mnt/disk/couchdb";
 
   # llama.cpp 推論サーバー
-  services.llama-server.enable = true;
+  # services.llama-server.enable = true;
 
   # Web Interface (SvelteKit + Bun)
   services.web-interface.enable = true;
