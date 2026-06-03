@@ -79,6 +79,24 @@
         "type": "github"
       }
     },
+    "flake-utils": {
+      "inputs": {
+        "systems": "systems_3"
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -97,6 +115,23 @@
       "original": {
         "owner": "nix-community",
         "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "livesync-commonlib": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1772543791,
+        "narHash": "sha256-wshEpdihqloMnIE5wGTdKOTjqLo9IL5WIoEiocZP2VA=",
+        "owner": "vrtmrz",
+        "repo": "livesync-commonlib",
+        "rev": "258d9aca1139e718efb0431449556c0543d72c7e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "vrtmrz",
+        "repo": "livesync-commonlib",
+        "rev": "258d9aca1139e718efb0431449556c0543d72c7e",
         "type": "github"
       }
     },
@@ -148,11 +183,31 @@
         "type": "github"
       }
     },
+    "obsidian-vault-cli": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "livesync-commonlib": "livesync-commonlib",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1778819011,
+        "narHash": "sha256-debze7w5wUVvvixDqRZt5ZEZYp5IsP4BSnaiSbL4kMk=",
+        "path": "/home/bido/obsidian-vault-cli",
+        "type": "path"
+      },
+      "original": {
+        "path": "/home/bido/obsidian-vault-cli",
+        "type": "path"
+      }
+    },
     "root": {
       "inputs": {
         "agenix": "agenix",
         "deploy-rs": "deploy-rs",
-        "nixpkgs": "nixpkgs_3"
+        "nixpkgs": "nixpkgs_3",
+        "obsidian-vault-cli": "obsidian-vault-cli"
       }
     },
     "systems": {
@@ -171,6 +226,21 @@
       }
     },
     "systems_2": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    },
+    "systems_3": {
       "locked": {
         "lastModified": 1681028828,
         "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
