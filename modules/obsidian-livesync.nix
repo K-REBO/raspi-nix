@@ -18,6 +18,12 @@ in
       default = 5984;
       description = "Port to bind CouchDB (localhost only)";
     };
+
+    syncDir = lib.mkOption {
+      type = lib.types.path;
+      default = "/mnt/2disk/obsidian-backup";
+      description = "obsidian-vault sync の出力先ディレクトリ (HDD)";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -93,17 +99,23 @@ in
       };
     };
 
-    # obsidian-vault daily sync (12:00)
+    # obsidian-vault sync: CouchDB → ファイルシステムへ毎日12:00に書き出す
     systemd.services.obsidian-vault-sync = {
-      description = "Obsidian vault daily sync";
-      after = [ "couchdb.service" ];
+      description = "Obsidian vault daily sync to ${cfg.syncDir}";
+      after = [ "couchdb.service" "mnt-2disk.mount" ];
+      requires = [ "mnt-2disk.mount" ];
       serviceConfig = {
         Type = "oneshot";
+        User = "rpi";
         ExecStart = pkgs.writeShellScript "obsidian-vault-sync" ''
+          set -euo pipefail
           set -a; source ${config.age.secrets.couchdb-env.path}; set +a
           export COUCHDB_URL="http://127.0.0.1:${toString cfg.port}"
-          exec ${obsidianVaultPkg}/bin/obsidian-vault sync
+          mkdir -p ${cfg.syncDir}
+          exec ${obsidianVaultPkg}/bin/obsidian-vault sync ${cfg.syncDir} --delete
         '';
+        StandardOutput = "journal";
+        StandardError  = "journal";
       };
     };
 

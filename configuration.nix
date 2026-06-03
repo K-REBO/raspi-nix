@@ -7,7 +7,6 @@
     ./modules/llama-server.nix
     ./modules/web-interface.nix
     ./modules/daily-note-scheduler.nix
-    ./modules/discord-claude.nix
   ];
 
   networking.hostName = "nixpi";
@@ -66,9 +65,6 @@
 
   # Obsidian デイリーノートスケジューラー
   services.daily-note-scheduler.enable = true;
-
-  # Discord Claude チャンネル
-  services.discord-claude.enable = true;
 
   # 外付けストレージ: systemd.mounts を使って静的ユニットを nix ストアに生成する
   systemd.mounts = [
