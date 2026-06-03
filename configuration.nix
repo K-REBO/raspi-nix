@@ -5,7 +5,7 @@
     ./modules/obsidian-livesync.nix
     ./modules/obsidian-livesync-backup.nix
     # ./modules/llama-server.nix
-    ./modules/web-interface.nix
+    # ./modules/web-interface.nix
     ./modules/daily-note-scheduler.nix
   ];
 
@@ -59,9 +59,6 @@
 
   # llama.cpp 推論サーバー
   # services.llama-server.enable = true;
-
-  # Web Interface (SvelteKit + Bun)
-  services.web-interface.enable = true;
 
   # Obsidian デイリーノートスケジューラー
   services.daily-note-scheduler.enable = true;
