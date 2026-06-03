@@ -25,9 +25,11 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
     deploy-rs.url = "github:serokell/deploy-rs";
     agenix.url = "github:ryantm/agenix";
+    obsidian-vault-cli.url = "path:/home/bido/obsidian-vault-cli";
+    obsidian-vault-cli.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, deploy-rs, agenix }: {
+  outputs = { self, nixpkgs, deploy-rs, agenix, obsidian-vault-cli }: {
     nixosConfigurations.nixpi = nixpkgs.lib.nixosSystem {
       system = "aarch64-linux";
       modules = [
@@ -36,6 +38,7 @@
         agenix.nixosModules.default
         {
           nixpkgs.buildPlatform = "x86_64-linux";
+          _module.args.obsidianVaultPkg = obsidian-vault-cli.packages.aarch64-linux.default;
         }
       ];
     };

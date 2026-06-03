@@ -1,4 +1,4 @@
-{ config, pkgs, lib, pkgs-unstable, ... }:
+{ config, pkgs, lib, ... }:
 
 let
   cfg = config.services.llama-server;
@@ -30,7 +30,13 @@ in {
 
     contextSize = lib.mkOption {
       type    = lib.types.int;
-      default = 2048;
+      default = 1024;
+    };
+
+    threads = lib.mkOption {
+      type    = lib.types.int;
+      default = 3;
+      description = "CPUスレッド数 (Pi 4B は 3 推奨、1コアをシステム用に残す)";
     };
 
     nParallel = lib.mkOption {
@@ -52,12 +58,10 @@ in {
     };
     users.groups.${cfg.user} = {};
 
-    # モデルディレクトリを HDD 上に確保
     systemd.tmpfiles.rules = [
       "d ${cfg.modelDir} 0755 ${cfg.user} ${cfg.user} -"
     ];
 
-    # ---- モデルダウンロード (HDD マウント後、初回のみ) ----
     systemd.services.llama-model-download = {
       description = "Download ${cfg.modelFile} to HDD";
       after    = [ "mnt-disk.mount" "network-online.target" ];
@@ -85,18 +89,15 @@ in {
             echo "download complete: $DEST"
           '';
         in "${script}";
-        # 失敗時に中途ファイルを削除して再試行可能にする
         ExecStartPost = let
           cleanup = pkgs.writeShellScript "llama-download-cleanup" ''
             rm -f "${cfg.modelDir}/${cfg.modelFile}.tmp"
           '';
         in "+${cleanup}";
-        # 書き込みは HDD のみ、SD カードへのアクセスを防ぐ
         ReadWritePaths = [ cfg.modelDir ];
       };
     };
 
-    # ---- llama-server 本体 ----
     systemd.services.llama-server = {
       description = "llama.cpp server (${cfg.modelFile})";
       wantedBy = [ "multi-user.target" ];
@@ -106,21 +107,24 @@ in {
         Type       = "simple";
         User       = cfg.user;
         ExecStart  = ''
-          ${pkgs-unstable.llama-cpp}/bin/llama-server \
+          ${pkgs.llama-cpp}/bin/llama-server \
             --model ${cfg.modelDir}/${cfg.modelFile} \
             --ctx-size ${toString cfg.contextSize} \
             --parallel ${toString cfg.nParallel} \
+            --threads ${toString cfg.threads} \
             --host 0.0.0.0 \
             --port ${toString cfg.port} \
-            --log-disable
+            --no-warmup \
+            --cache-ram 0
         '';
         Restart    = "on-failure";
         RestartSec = "15s";
-        # ログは journald (volatile) — SD カード書き込みなし
+        CPUQuota   = "300%";
+        MemoryHigh = "700M";
+        MemoryMax  = "800M";
+        ReadWritePaths = [ cfg.modelDir ];
         StandardOutput = "journal";
         StandardError  = "journal";
-        # SD カード保護: 書き込みを HDD に限定
-        ReadWritePaths = [ cfg.modelDir ];
       };
     };
   };

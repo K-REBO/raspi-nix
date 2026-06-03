@@ -10,7 +10,9 @@ let
     src = ../apps/web_interface;
     nativeBuildInputs = [ pkgs.bun pkgs.git ];
     outputHashMode = "recursive";
-    outputHash = lib.fakeHash; # TODO: nix build 後に実際のハッシュに更新する
+    # ソース変更後は `nix build .#nixosConfigurations.nixpi.config.system.build.toplevel` を
+    # 実行して新しいハッシュに更新すること
+    outputHash = "sha256-u3iigo+/jELBHA6vYiDdBInjdu6QptIJJO4/+SshG/c=";
     buildPhase = ''
       export HOME=$(mktemp -d)
       bun install --frozen-lockfile
@@ -79,6 +81,8 @@ in
           "DATA_DIR=${cfg.dataDir}"
           "HOME=/home/${cfg.user}"
           "PATH=/run/current-system/sw/bin:/home/${cfg.user}/.local/bin"
+          "SCHEDULER_CMD=/run/current-system/sw/bin/daily-note-scheduler"
+          "VAULT_CACHE_DIR=/mnt/2disk/daily-note-scheduler"
         ];
       };
     };

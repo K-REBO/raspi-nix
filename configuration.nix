@@ -4,6 +4,9 @@
   imports = [
     ./modules/obsidian-livesync.nix
     ./modules/obsidian-livesync-backup.nix
+    ./modules/llama-server.nix
+    ./modules/web-interface.nix
+    ./modules/daily-note-scheduler.nix
     ./modules/discord-claude.nix
   ];
 
@@ -12,7 +15,7 @@
 
   users.users.rpi = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "docker" ];
+    extraGroups = [ "wheel" ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHurSJOCksQe93WR+fEYP9MiyJXNcnrz58hG0mRZOMHM"
     ];
@@ -51,20 +54,23 @@
     trustedInterfaces = [ "tailscale0" ];
   };
 
-  # Docker
-  virtualisation.docker.enable = true;
-  virtualisation.oci-containers.backend = "docker";
-
-  # Obsidian LiveSync
+  # Obsidian LiveSync (native CouchDB)
   services.obsidian-livesync.enable = true;
   services.obsidian-livesync.dataDir = "/mnt/disk/couchdb";
 
-  # Obsidian LiveSync バックアップ CLI
-  services.obsidian-livesync-backup.enable = true;
+  # llama.cpp 推論サーバー
+  services.llama-server.enable = true;
+
+  # Web Interface (SvelteKit + Bun)
+  services.web-interface.enable = true;
+
+  # Obsidian デイリーノートスケジューラー
+  services.daily-note-scheduler.enable = true;
+
+  # Discord Claude チャンネル
+  services.discord-claude.enable = true;
 
   # 外付けストレージ: systemd.mounts を使って静的ユニットを nix ストアに生成する
-  # fileSystems (fstab 経由) だと switch-to-configuration-ng がランタイム生成ユニットを
-  # nix ストアで探して失敗するため、静的ユニットを直接生成する方式に変更
   systemd.mounts = [
     {
       description = "External storage /mnt/disk";
@@ -84,6 +90,26 @@
     }
   ];
 
+  # ジャーナルを HDD に永続保存 (14日間保持)
+  systemd.services.journal-persist = {
+    description = "Persist journal to HDD in real-time";
+    after    = [ "mnt-disk.mount" "systemd-journald.service" ];
+    requires = [ "mnt-disk.mount" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type       = "simple";
+      User       = "root";
+      Restart    = "on-failure";
+      RestartSec = "5s";
+      ExecStart  = pkgs.writeShellScript "journal-persist" ''
+        mkdir -p /mnt/disk/journal
+        LOG="/mnt/disk/journal/boot-$(date +%Y%m%d-%H%M%S).log"
+        find /mnt/disk/journal -name "boot-*.log" -mtime +14 -delete 2>/dev/null || true
+        exec ${pkgs.systemd}/bin/journalctl -b -f --no-tail --output=short-iso >> "$LOG"
+      '';
+    };
+  };
+
   # WiFi
   age.secrets.wifi-env = {
     file = ./secrets/wifi-env.age;
@@ -95,12 +121,10 @@
   };
 
   # Cloudflare Tunnel (tc.bido.dev)
-  # Tunnel ID: 6f0e6b36-3a09-4904-b769-6e5ebce6d2c1
   age.secrets.cloudflared-token = {
     file = ./secrets/cloudflared-token.age;
   };
 
-  # ingressルール設定 (config.yml)
   environment.etc."cloudflared/config.yml".text = ''
     ingress:
       - hostname: obsidian.bido.dev
@@ -128,8 +152,6 @@
     };
   };
 
-  # cloudflaredのQUIC接続が全断しても自動復旧できるようにヘルスチェックタイマーを追加
-  # プロセス自体は生きているが接続が死んでいる状態を検知して再起動する
   systemd.services.cloudflared-healthcheck = {
     description = "Cloudflare Tunnel connection health check";
     after = [ "cloudflared.service" ];
@@ -166,8 +188,6 @@
     experimental-features = [ "nix-command" "flakes" ];
     trusted-users = [ "root" "rpi" ];
   };
-
-  services.discord-claude.enable = true;
 
   system.stateVersion = "24.11";
 }

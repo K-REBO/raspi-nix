@@ -29,4 +29,7 @@ in
 
   # Discord Webhook URL (Minecraft通知用)
   "discord-webhook.age".publicKeys = allKeys;
+
+  # Web Interface 環境変数
+  "web-interface-env.age".publicKeys = allKeys;
 }
