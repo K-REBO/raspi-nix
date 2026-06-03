@@ -182,5 +182,9 @@
     trusted-users = [ "root" "rpi" ];
   };
 
+  # gen28 に合わせて /tmp を tmpfs にマウント (512M)
+  # これがないと切り替え時に tmp.mount を停止しようとして失敗する
+  boot.tmp.useTmpfs = true;
+
   system.stateVersion = "24.11";
 }
