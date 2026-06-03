@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# ローカル開発用 daily-note-scheduler
+# Pi 上の本番スクリプトと同じ動作をローカルで再現する
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WEB_DIR="$(dirname "$SCRIPT_DIR")"
+REPO_ROOT="$(dirname "$(dirname "$WEB_DIR")")"
+
+# .env.local から credentials を読み込む (あれば)
+if [ -f "$WEB_DIR/.env.local" ]; then
+  set -a
+  source "$WEB_DIR/.env.local"
+  set +a
+fi
+
+# キャッシュディレクトリ (HDD の代わりに /tmp を使用)
+export VAULT_CACHE_DIR="${VAULT_CACHE_DIR:-/tmp/daily-note-scheduler}"
+mkdir -p "$VAULT_CACHE_DIR/schedule_assets"
+
+# obsidian-vault コマンドの解決
+# ローカルのビルド済みバイナリを優先
+VAULT_BIN=""
+for candidate in \
+  "$HOME/obsidian-vault-cli/bin/obsidian-vault" \
+  "/home/bido/obsidian-vault-cli/bin/obsidian-vault" \
+  "$(which obsidian-vault 2>/dev/null || echo "")"; do
+  if [ -x "$candidate" ]; then
+    VAULT_BIN="$candidate"
+    break
+  fi
+done
+
+if [ -z "$VAULT_BIN" ]; then
+  echo "obsidian-vault が見つかりません。/home/bido/obsidian-vault-cli を確認してください。" >&2
+  exit 1
+fi
+
+# task-schedule スキルのシムリンク (なければ作成)
+SKILL_SRC="$REPO_ROOT/skills/task-schedule"
+SKILL_DST="$HOME/.claude/skills/task-schedule"
+if [ ! -e "$SKILL_DST" ] && [ -d "$SKILL_SRC" ]; then
+  mkdir -p "$HOME/.claude/skills"
+  ln -sf "$SKILL_SRC" "$SKILL_DST"
+  echo "task-schedule スキルをリンクしました: $SKILL_DST" >&2
+fi
+
+# obsidian-vault のラッパー関数をエクスポート
+# (スキルスクリプト内で obsidian-vault コマンドが呼べるように PATH に追加)
+VAULT_DIR="$(dirname "$VAULT_BIN")"
+export PATH="$VAULT_DIR:$PATH"
+
+# claude の解決
+CLAUDE_BIN="${CLAUDE_BIN:-}"
+if [ -z "$CLAUDE_BIN" ]; then
+  for candidate in \
+    "$HOME/.local/bin/claude" \
+    "$(which claude 2>/dev/null || echo "")"; do
+    if [ -x "$candidate" ]; then
+      CLAUDE_BIN="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$CLAUDE_BIN" ]; then
+  echo "claude が見つかりません。claude をインストールしてください。" >&2
+  exit 1
+fi
+
+exec "$CLAUDE_BIN" --print \
+  "今日のデイリーノートをスケジューリングして。開始時刻が不明な場合は 08:00 とすること。"
