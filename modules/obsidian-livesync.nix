@@ -29,9 +29,9 @@ in
   config = lib.mkIf cfg.enable {
     age.secrets.couchdb-env = {
       file = ../secrets/couchdb-env.age;
-      mode = "0400";
-      owner = "root";
-      group = "root";
+      mode = "0440";
+      owner = "couchdb";
+      group = "couchdb";
     };
 
     # NixOS native CouchDB
@@ -74,6 +74,7 @@ in
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
+        User = "couchdb";
         RuntimeDirectory = "couchdb-init";
         RuntimeDirectoryMode = "0750";
         ExecStart = pkgs.writeShellScript "couchdb-admin-config" ''
