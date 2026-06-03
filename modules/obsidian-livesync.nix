@@ -39,7 +39,8 @@ in
     # NixOS couchdb モジュールが ERL_FLAGS の末尾にこのパスを追加する
     services.couchdb = {
       enable = true;
-      dataDir = cfg.dataDir;
+      databaseDir = cfg.dataDir;
+      viewIndexDir = cfg.dataDir;
       bindAddress = "127.0.0.1";
       port = cfg.port;
       configFile = "/run/couchdb-init/admin.ini";
