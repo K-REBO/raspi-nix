@@ -85,8 +85,14 @@ in
           ${git} -C "$VAULT_DIR" push origin HEAD:"${cfg.branch}"
           echo "プッシュ完了: $TIMESTAMP"
         '';
+        Restart    = "on-failure";
+        RestartSec = "60s";
         StandardOutput = "journal";
         StandardError = "journal";
+      };
+      unitConfig = {
+        StartLimitBurst       = 3;
+        StartLimitIntervalSec = "600s";
       };
     };
 

@@ -117,6 +117,14 @@ in
       after     = [ "couchdb-admin-config.service" "couchdb-data-chown.service" ];
       # admin-config が停止したら couchdb も停止させ admin-party 状態を防ぐ
       bindsTo   = [ "couchdb-admin-config.service" ];
+      serviceConfig = {
+        Restart    = "on-failure";
+        RestartSec = "10s";
+      };
+      unitConfig = {
+        StartLimitBurst       = 5;
+        StartLimitIntervalSec = "120s";
+      };
     };
 
     # CouchDB 起動後に obsidian DB の _revs_limit を設定
@@ -182,8 +190,14 @@ in
           export DB_NAME="${cfg.dbName}"
           exec ${obsidianVaultPkg}/bin/obsidian-vault sync ${cfg.syncDir} --delete
         '';
+        Restart    = "on-failure";
+        RestartSec = "60s";
         StandardOutput = "journal";
         StandardError  = "journal";
+      };
+      unitConfig = {
+        StartLimitBurst       = 3;
+        StartLimitIntervalSec = "600s";
       };
     };
 
