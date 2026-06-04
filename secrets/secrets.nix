@@ -32,4 +32,12 @@ in
 
   # Web Interface 環境変数
   "web-interface-env.age".publicKeys = allKeys;
+
+  "discord.age".publicKeys = allKeys;
+
+  # Obsidian vault CLI 用環境変数 (E2EE_PASSPHRASE, DB_NAME)
+  "vault-env.age".publicKeys = allKeys;
+
+  # GitHub deploy key (Obsidian vault → GitHub push 用 SSH 秘密鍵)
+  "github-deploy-key.age".publicKeys = allKeys;
 }

@@ -4,6 +4,7 @@
   imports = [
     ./modules/obsidian-livesync.nix
     ./modules/obsidian-livesync-backup.nix
+    ./modules/obsidian-github-push.nix
     # ./modules/llama-server.nix
     # ./modules/web-interface.nix
     ./modules/daily-note-scheduler.nix
@@ -25,12 +26,11 @@
     settings.PasswordAuthentication = false;
   };
 
-  # sshdをOOMキラーから保護・ハング検出・自動再起動
+  # sshdをOOMキラーから保護・自動再起動
   systemd.services.sshd.serviceConfig = {
     OOMScoreAdjust = -1000;
     Restart = "always";
     RestartSec = "5s";
-    WatchdogSec = "30s";
   };
   systemd.services.sshd.unitConfig = {
     StartLimitIntervalSec = "120s";
@@ -56,12 +56,19 @@
   # Obsidian LiveSync (native CouchDB)
   services.obsidian-livesync.enable = true;
   services.obsidian-livesync.dataDir = "/mnt/disk/couchdb";
+  services.obsidian-livesync.dbName = "obsidian";
 
   # services.llama-server.enable = true;
   # services.web-interface.enable = true;
 
   # Obsidian デイリーノートスケジューラー
   services.daily-note-scheduler.enable = true;
+
+  # Obsidian vault → GitHub push
+  services.obsidian-github-push = {
+    enable = true;
+    remoteUrl = "git@github.com:K-REBO/obsidian-vault.git";
+  };
 
   # 外付けストレージ: systemd.mounts を使って静的ユニットを nix ストアに生成する
   systemd.mounts = [

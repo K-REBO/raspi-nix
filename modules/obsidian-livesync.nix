@@ -24,6 +24,12 @@ in
       default = "/mnt/2disk/obsidian-backup";
       description = "obsidian-vault sync の出力先ディレクトリ (HDD)";
     };
+
+    dbName = lib.mkOption {
+      type = lib.types.str;
+      default = "obsidiannotes";
+      description = "CouchDB 上の Obsidian LiveSync データベース名";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -32,6 +38,13 @@ in
       mode = "0440";
       owner = "couchdb";
       group = "couchdb";
+    };
+
+    # E2EE_PASSPHRASE と DB_NAME を格納するシークレット (obsidian-vault CLI 用)
+    age.secrets.vault-env = {
+      file = ../secrets/vault-env.age;
+      mode = "0400";
+      owner = "rpi";
     };
 
     # NixOS native CouchDB
@@ -67,6 +80,12 @@ in
         [log]
         writer = stderr
         level  = notice
+
+        [smoosh.ratio_dbs]
+        min_priority = 2.0
+
+        [smoosh.ratio_views]
+        min_priority = 2.0
       '';
     };
 
@@ -100,6 +119,35 @@ in
       bindsTo   = [ "couchdb-admin-config.service" ];
     };
 
+    # CouchDB 起動後に obsidian DB の _revs_limit を設定
+    systemd.services.couchdb-setup = {
+      description = "Configure CouchDB obsidian database settings";
+      after  = [ "couchdb.service" ];
+      wants  = [ "couchdb.service" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        User = "couchdb";
+        ExecStart = pkgs.writeShellScript "couchdb-setup" ''
+          set -euo pipefail
+          set -a; source ${config.age.secrets.couchdb-env.path}; set +a
+          # CouchDB が起動するまで待機
+          for i in $(seq 1 30); do
+            if ${pkgs.curl}/bin/curl -sf "http://localhost:${toString cfg.port}/_up" >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          # obsidian DB の revs_limit を 20 に設定（デフォルト 1000 は大きすぎる）
+          ${pkgs.curl}/bin/curl -sf -X PUT \
+            "http://''${COUCHDB_USER}:''${COUCHDB_PASSWORD}@localhost:${toString cfg.port}/${cfg.dbName}/_revs_limit" \
+            -H "Content-Type: application/json" \
+            -d "20"
+        '';
+      };
+    };
+
     # Docker→native 移行: データディレクトリのオーナーを couchdb ユーザーに修正
     systemd.services.couchdb-data-chown = {
       description = "Fix CouchDB data directory ownership (Docker→native migration)";
@@ -120,11 +168,18 @@ in
       serviceConfig = {
         Type = "oneshot";
         User = "rpi";
+        ExecStartPre = "+${pkgs.writeShellScript "obsidian-vault-sync-pre" ''
+          mkdir -p ${cfg.syncDir}
+          chown rpi ${cfg.syncDir}
+        ''}";
         ExecStart = pkgs.writeShellScript "obsidian-vault-sync" ''
           set -euo pipefail
-          set -a; source ${config.age.secrets.couchdb-env.path}; set +a
+          set -a
+          source ${config.age.secrets.couchdb-env.path}
+          source ${config.age.secrets.vault-env.path}
+          set +a
           export COUCHDB_URL="http://127.0.0.1:${toString cfg.port}"
-          mkdir -p ${cfg.syncDir}
+          export DB_NAME="${cfg.dbName}"
           exec ${obsidianVaultPkg}/bin/obsidian-vault sync ${cfg.syncDir} --delete
         '';
         StandardOutput = "journal";
