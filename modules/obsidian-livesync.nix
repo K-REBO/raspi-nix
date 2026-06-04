@@ -61,6 +61,9 @@ in
         [couch_httpd_auth]
         timeout = 600
 
+        [os_mon]
+        start_disk_sup = false
+
         [log]
         writer = stderr
         level  = notice
