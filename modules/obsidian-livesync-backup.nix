@@ -129,7 +129,7 @@ in
         fi
 
         # 認証情報を読み込む
-        export $(grep -v '^#' "$COUCHDB_ENV" | xargs)
+        set -a; source "$COUCHDB_ENV"; set +a
         USER="''${COUCHDB_USER:-admin}"
         PASS="''${COUCHDB_PASSWORD:-}"
         PORT="${toString config.services.obsidian-livesync.port}"

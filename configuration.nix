@@ -14,7 +14,7 @@
 
   users.users.rpi = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ];
+    extraGroups = [ "wheel" "couchdb" ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHurSJOCksQe93WR+fEYP9MiyJXNcnrz58hG0mRZOMHM"
     ];
@@ -57,8 +57,8 @@
   services.obsidian-livesync.enable = true;
   services.obsidian-livesync.dataDir = "/mnt/disk/couchdb";
 
-  # llama.cpp 推論サーバー
   # services.llama-server.enable = true;
+  # services.web-interface.enable = true;
 
   # Obsidian デイリーノートスケジューラー
   services.daily-note-scheduler.enable = true;
@@ -124,10 +124,10 @@
         service: http://localhost:5984
       - hostname: tc.bido.dev
         path: /reservation*
-        service: http://localhost:5173
+        service: http_status:503
       - hostname: tc.bido.dev
         path: /studio-assignment*
-        service: http://localhost:5174
+        service: http_status:503
       - hostname: tc.bido.dev
         service: http_status:404
       - service: http_status:404
@@ -185,6 +185,7 @@
   # gen28 に合わせて /tmp を tmpfs にマウント (512M)
   # これがないと切り替え時に tmp.mount を停止しようとして失敗する
   boot.tmp.useTmpfs = true;
+  boot.tmp.tmpfsSize = "512M";
 
   system.stateVersion = "24.11";
 }

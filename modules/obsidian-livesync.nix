@@ -78,7 +78,12 @@ in
         RuntimeDirectory = "couchdb-init";
         RuntimeDirectoryMode = "0750";
         ExecStart = pkgs.writeShellScript "couchdb-admin-config" ''
+          set -euo pipefail
           set -a; source ${config.age.secrets.couchdb-env.path}; set +a
+          if [ -z "''${COUCHDB_USER:-}" ] || [ -z "''${COUCHDB_PASSWORD:-}" ]; then
+            echo "couchdb-env: COUCHDB_USER または COUCHDB_PASSWORD が未設定" >&2
+            exit 1
+          fi
           printf '[admins]\n%s = %s\n' "$COUCHDB_USER" "$COUCHDB_PASSWORD" \
             > /run/couchdb-init/admin.ini
         '';
@@ -86,8 +91,10 @@ in
     };
 
     systemd.services.couchdb = {
-      requires = [ "couchdb-admin-config.service" "couchdb-data-chown.service" ];
-      after    = [ "couchdb-admin-config.service" "couchdb-data-chown.service" ];
+      requires  = [ "couchdb-admin-config.service" "couchdb-data-chown.service" ];
+      after     = [ "couchdb-admin-config.service" "couchdb-data-chown.service" ];
+      # admin-config が停止したら couchdb も停止させ admin-party 状態を防ぐ
+      bindsTo   = [ "couchdb-admin-config.service" ];
     };
 
     # Docker→native 移行: データディレクトリのオーナーを couchdb ユーザーに修正
@@ -104,7 +111,8 @@ in
     # obsidian-vault sync: CouchDB → ファイルシステムへ毎日12:00に書き出す
     systemd.services.obsidian-vault-sync = {
       description = "Obsidian vault daily sync to ${cfg.syncDir}";
-      after = [ "couchdb.service" "mnt-2disk.mount" ];
+      after    = [ "couchdb.service" "mnt-2disk.mount" ];
+      wants    = [ "couchdb.service" ];
       requires = [ "mnt-2disk.mount" ];
       serviceConfig = {
         Type = "oneshot";
