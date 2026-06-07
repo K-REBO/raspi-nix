@@ -29,9 +29,11 @@
     obsidian-vault-cli.inputs.nixpkgs.follows = "nixpkgs";
     discord-bridge.url = "path:/home/bido/projects/discord_bridge";
     discord-bridge.inputs.nixpkgs.follows = "nixpkgs";
+    rust-overlay.url = "github:oxalica/rust-overlay";
+    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, deploy-rs, agenix, obsidian-vault-cli, discord-bridge }: {
+  outputs = { self, nixpkgs, deploy-rs, agenix, obsidian-vault-cli, discord-bridge, rust-overlay }: {
     nixosConfigurations.nixpi = nixpkgs.lib.nixosSystem {
       system = "aarch64-linux";
       modules = [
@@ -42,6 +44,7 @@
           nixpkgs.buildPlatform = "x86_64-linux";
           _module.args.obsidianVaultPkg    = obsidian-vault-cli.packages.aarch64-linux.default;
           _module.args.discordBridgeSrc   = discord-bridge;
+          _module.args.rustOverlay        = rust-overlay;
         }
       ];
     };

@@ -1,4 +1,4 @@
-{ config, pkgs, lib, discordBridgeSrc, ... }:
+{ config, pkgs, lib, discordBridgeSrc, rustOverlay, ... }:
 
 let
   cfg = config.services.hisaki;
@@ -9,7 +9,18 @@ let
     cargoLock.lockFile = ../apps/hisaki/Cargo.lock;
   };
 
-  discordCliBin = pkgs.rustPlatform.buildRustPackage {
+  # discord_bridge は edition2024 を使用するため Rust 1.85+ が必要。
+  # nixpkgs 24.11 の Rust 1.82 では不可のため rust-overlay で上書きする。
+  buildPkgsWithRust = pkgs.buildPackages.extend rustOverlay.overlays.default;
+  rustToolchain = buildPkgsWithRust.rust-bin.stable.latest.default.override {
+    targets = [ "aarch64-unknown-linux-gnu" ];
+  };
+  discordRustPlatform = pkgs.makeRustPlatform {
+    cargo = rustToolchain;
+    rustc = rustToolchain;
+  };
+
+  discordCliBin = discordRustPlatform.buildRustPackage {
     name = "discord_bridge";
     src = discordBridgeSrc;
     cargoLock.lockFile = "${discordBridgeSrc}/Cargo.lock";
