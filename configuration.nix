@@ -8,6 +8,7 @@
     # ./modules/llama-server.nix
     # ./modules/web-interface.nix
     ./modules/daily-note-scheduler.nix
+    ./modules/hisaki.nix
   ];
 
   networking.hostName = "nixpi";
@@ -60,6 +61,7 @@
 
   # services.llama-server.enable = true;
   # services.web-interface.enable = true;
+  services.hisaki.enable = true;
 
   # Obsidian デイリーノートスケジューラー
   services.daily-note-scheduler.enable = true;
@@ -137,6 +139,8 @@
         service: http_status:503
       - hostname: tc.bido.dev
         service: http_status:404
+      - hostname: hisaki-api.bido.dev
+        service: http://localhost:3001
       - service: http_status:404
   '';
 
