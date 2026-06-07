@@ -7,6 +7,11 @@ in
   "secrets/couchdb-env.age".publicKeys       = allKeys;
   "secrets/cloudflared-token.age".publicKeys = allKeys;
   "secrets/wifi-env.age".publicKeys          = allKeys;
-  "secrets/web-interface-env.age".publicKeys = allKeys;
+  "secrets/web-interface-env.age".publicKeys  = allKeys;
+  "secrets/discord.age".publicKeys           = allKeys;
+  "secrets/discord-webhook.age".publicKeys   = allKeys;
+  "secrets/github-deploy-key.age".publicKeys = allKeys;
+  "secrets/playit-secret.age".publicKeys     = allKeys;
+  "secrets/vault-env.age".publicKeys         = allKeys;
   "secrets/hisaki-env.age".publicKeys        = allKeys;
 }
