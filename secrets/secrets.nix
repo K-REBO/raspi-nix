@@ -40,4 +40,6 @@ in
 
   # GitHub deploy key (Obsidian vault → GitHub push 用 SSH 秘密鍵)
   "github-deploy-key.age".publicKeys = allKeys;
+
+  "hisaki-env.age".publicKeys = allKeys;
 }

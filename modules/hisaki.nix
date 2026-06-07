@@ -1,4 +1,4 @@
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, discordBridgeSrc, ... }:
 
 let
   cfg = config.services.hisaki;
@@ -8,6 +8,13 @@ let
     src = ../apps/hisaki;
     cargoLock.lockFile = ../apps/hisaki/Cargo.lock;
   };
+
+  discordCliBin = pkgs.rustPlatform.buildRustPackage {
+    name = "discord_bridge";
+    src = discordBridgeSrc;
+    cargoLock.lockFile = "${discordBridgeSrc}/Cargo.lock";
+    cargoBuildFlags = [ "--bin" "discord_cli" ];
+  };
 in
 {
   options.services.hisaki = {
@@ -16,17 +23,6 @@ in
     port = lib.mkOption {
       type    = lib.types.port;
       default = 3001;
-    };
-
-    discordChannelId = lib.mkOption {
-      type        = lib.types.str;
-      description = "通知先の Discord チャンネル ID";
-    };
-
-    discordCliBin = lib.mkOption {
-      type    = lib.types.str;
-      default = "/home/rpi/.local/bin/discord_cli";
-      description = "discord_cli バイナリのパス";
     };
 
     user = lib.mkOption {
@@ -62,13 +58,12 @@ in
         Restart         = "on-failure";
         RestartSec      = "10s";
         EnvironmentFile = [
-          config.age.secrets.hisaki-env.path   # HS_API_TOKEN
+          config.age.secrets.hisaki-env.path   # HS_API_TOKEN, DISCORD_CHANNEL_ID
           config.age.secrets.discord.path       # DISCORD_TOKEN
         ];
         Environment = [
           "PORT=${toString cfg.port}"
-          "DISCORD_CLI=${cfg.discordCliBin}"
-          "DISCORD_CHANNEL_ID=${cfg.discordChannelId}"
+          "DISCORD_CLI=${discordCliBin}/bin/discord_cli"
           "RUST_LOG=info"
         ];
         StandardOutput = "journal";
