@@ -61,7 +61,8 @@
 
   # services.llama-server.enable = true;
   # services.web-interface.enable = true;
-  services.hisaki.enable = true;
+  services.hisaki.enable           = true;
+  services.hisaki.discordChannelId = "CHANNEL_ID_HERE";  # 実際のチャンネルIDに変更
 
   # Obsidian デイリーノートスケジューラー
   services.daily-note-scheduler.enable = true;

@@ -7,31 +7,34 @@ use axum::{
     Json, Router,
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::{env, sync::Arc};
 use tokio::net::TcpListener;
+use tokio::process::Command;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
 #[derive(Clone)]
 struct AppState {
-    api_token: String,
-    discord_webhook_url: String,
-    http: reqwest::Client,
+    api_token:         String,
+    discord_cli:       String,   // discord_cli バイナリのパス
+    discord_token:     String,   // DISCORD_TOKEN
+    discord_channel:   u64,      // DISCORD_CHANNEL_ID
 }
 
 #[derive(Deserialize)]
 struct Event {
-    event: Option<String>,
-    request: Option<String>,
-    lat: Option<f64>,
-    lng: Option<f64>,
-    address: Option<String>,
-    station: Option<String>,
+    event:        Option<String>,
+    request:      Option<String>,
+    lat:          Option<f64>,
+    lng:          Option<f64>,
+    address:      Option<String>,
+    station:      Option<String>,
     station_dist: Option<u32>,
-    user_agent: Option<String>,
-    ip: Option<String>,
-    timestamp: Option<String>,
+    #[allow(dead_code)]
+    user_agent:   Option<String>,
+    ip:           Option<String>,
+    timestamp:    Option<String>,
 }
 
 #[tokio::main]
@@ -44,10 +47,13 @@ async fn main() {
         .init();
 
     let state = Arc::new(AppState {
-        api_token: env::var("HS_API_TOKEN").expect("HS_API_TOKEN not set"),
-        discord_webhook_url: env::var("DISCORD_WEBHOOK_URL")
-            .expect("DISCORD_WEBHOOK_URL not set"),
-        http: reqwest::Client::new(),
+        api_token:       env::var("HS_API_TOKEN").expect("HS_API_TOKEN not set"),
+        discord_cli:     env::var("DISCORD_CLI").unwrap_or_else(|_| "discord_cli".to_string()),
+        discord_token:   env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set"),
+        discord_channel: env::var("DISCORD_CHANNEL_ID")
+            .expect("DISCORD_CHANNEL_ID not set")
+            .parse()
+            .expect("DISCORD_CHANNEL_ID must be a number"),
     });
 
     let app = Router::new()
@@ -85,64 +91,50 @@ async fn handle_event(
     Json(ev): Json<Event>,
 ) -> impl IntoResponse {
     let event_name = ev.event.as_deref().unwrap_or("unknown");
-    let embed = build_embed(&ev, event_name);
+    let message = build_message(&ev, event_name);
 
-    let _ = state
-        .http
-        .post(&state.discord_webhook_url)
-        .json(&json!({ "embeds": [embed] }))
-        .send()
-        .await;
+    let _ = Command::new(&state.discord_cli)
+        .args(["send", "--channel", &state.discord_channel.to_string(), "--message", &message])
+        .env("DISCORD_TOKEN", &state.discord_token)
+        .spawn();
 
     info!(event = event_name, "forwarded to Discord");
     Json(json!({ "ok": true }))
 }
 
-fn build_embed(ev: &Event, event_name: &str) -> Value {
-    let (title, color) = match event_name {
-        "page_opened" => ("📱 サイトを開いた", 0x9b59b6u32),
-        "auth_success" => ("✅ 認証成功", 0x2ecc71),
-        "auth_failure" => ("❌ 認証失敗", 0xe74c3c),
+fn build_message(ev: &Event, event_name: &str) -> String {
+    let header = match event_name {
+        "page_opened"  => "📱 サイトを開いた".to_string(),
+        "auth_success" => "✅ 認証成功".to_string(),
+        "auth_failure" => "❌ 認証失敗".to_string(),
         "survey" => match ev.request.as_deref() {
-            Some("line") => ("💬 LINEしてほしい", 0xe8729a),
-            Some("call") => ("📞 電話してほしい", 0xe8729a),
-            Some("come") => ("🚗 駆けつけてほしい", 0xe74c3c),
-            _ => ("📋 アンケート送信", 0xe8729a),
+            Some("line") => "💬 LINEしてほしい".to_string(),
+            Some("call") => "📞 電話してほしい".to_string(),
+            Some("come") => "🚗 駆けつけてほしい".to_string(),
+            _            => "📋 アンケート送信".to_string(),
         },
-        _ => ("📌 イベント", 0x95a5a6),
+        _ => "📌 イベント".to_string(),
     };
 
-    let mut fields: Vec<Value> = vec![];
+    let mut lines = vec![header];
 
     if let Some(ts) = &ev.timestamp {
-        fields.push(json!({ "name": "時刻", "value": ts, "inline": true }));
-    }
-    if let Some(ip) = &ev.ip {
-        fields.push(json!({ "name": "IP", "value": ip, "inline": true }));
-    }
-    if let Some(ua) = &ev.user_agent {
-        let short_ua = ua.chars().take(80).collect::<String>();
-        fields.push(json!({ "name": "UA", "value": short_ua, "inline": false }));
+        lines.push(format!("🕐 {ts}"));
     }
     if let Some(station) = &ev.station {
-        let dist_str = ev.station_dist
-            .map(|d| format!(" の近く（約 {}m）", d))
+        let dist = ev.station_dist
+            .map(|d| format!("（約{d}m）"))
             .unwrap_or_default();
-        fields.push(json!({ "name": "最寄り駅", "value": format!("{}駅{}", station, dist_str), "inline": false }));
-    } else if let Some(address) = &ev.address {
-        fields.push(json!({ "name": "場所", "value": address, "inline": false }));
+        lines.push(format!("📍 {station}駅の近く{dist}"));
+    } else if let Some(addr) = &ev.address {
+        lines.push(format!("📍 {addr}"));
     }
     if let (Some(lat), Some(lng)) = (ev.lat, ev.lng) {
-        fields.push(json!({
-            "name": "地図",
-            "value": format!("[Google Maps で見る](https://maps.google.com/?q={},{})", lat, lng),
-            "inline": false
-        }));
+        lines.push(format!("🗺️ https://maps.google.com/?q={lat},{lng}"));
+    }
+    if let Some(ip) = &ev.ip {
+        lines.push(format!("🌐 {ip}"));
     }
 
-    json!({
-        "title": title,
-        "color": color,
-        "fields": fields,
-    })
+    lines.join("\n")
 }
