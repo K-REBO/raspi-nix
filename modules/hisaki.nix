@@ -6,9 +6,7 @@ let
   hisakiBin = pkgs.rustPlatform.buildRustPackage {
     name = "hisaki";
     src = ../apps/hisaki;
-    # 初回ビルド後に `nix build` を実行し、出力されたハッシュに差し替えること
-    cargoHash = lib.fakeHash;
-    nativeBuildInputs = [ pkgs.pkg-config ];
+    cargoLock.lockFile = ../apps/hisaki/Cargo.lock;
   };
 in
 {

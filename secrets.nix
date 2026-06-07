@@ -8,4 +8,5 @@ in
   "secrets/cloudflared-token.age".publicKeys = allKeys;
   "secrets/wifi-env.age".publicKeys          = allKeys;
   "secrets/web-interface-env.age".publicKeys = allKeys;
+  "secrets/hisaki-env.age".publicKeys        = allKeys;
 }
