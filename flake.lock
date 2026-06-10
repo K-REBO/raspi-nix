@@ -137,8 +137,8 @@
         "rust-overlay": "rust-overlay_2"
       },
       "locked": {
-        "lastModified": 1780610615,
-        "narHash": "sha256-Gb1BaVkQ7Gu5tlxeKwXLf/pvs3euByayEfp7BN/Wgf0=",
+        "lastModified": 1781059793,
+        "narHash": "sha256-MvGQp4lEQ8gtCZi2AdpuYu28Jx1TJS6bF+lAxHGwhNE=",
         "path": "/home/bido/projects/discord_bridge",
         "type": "path"
       },
@@ -392,7 +392,8 @@
         "deploy-rs": "deploy-rs",
         "discord-bridge": "discord-bridge",
         "nixpkgs": "nixpkgs_4",
-        "obsidian-vault-cli": "obsidian-vault-cli"
+        "obsidian-vault-cli": "obsidian-vault-cli",
+        "rust-overlay": "rust-overlay_3"
       }
     },
     "rust-overlay": {
@@ -427,6 +428,26 @@
         "owner": "oxalica",
         "repo": "rust-overlay",
         "rev": "7cc96a6a3fd6613cafd633250a3934483479b9a1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "rust-overlay_3": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1780802404,
+        "narHash": "sha256-bGtIUeLb0yChX4h6hB40OOCwcYhcpQZHXSDvZGdWgeM=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "8e596a8430f2ce54d55c742198187d6945a5501e",
         "type": "github"
       },
       "original": {
