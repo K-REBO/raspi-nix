@@ -47,14 +47,12 @@ in
       file  = ../secrets/hisaki-env.age;
       mode  = "0440";
       owner = "root";
-      group = cfg.user;
     };
 
     age.secrets.discord = {
       file  = ../secrets/discord.age;
       mode  = "0440";
       owner = "root";
-      group = cfg.user;
     };
 
     systemd.services.hisaki = {

@@ -57,8 +57,8 @@
         sshUser = "rpi";
         path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.nixpi;
 
-        # リモートビルドを無効化 (x86_64 でクロスビルド)
-        remoteBuild = true;
+        # リモートビルドを無効化 (x86_64 ホストでビルドし、Pi の SD カードを消費しない)
+        remoteBuild = false;
 
         # ターゲットが cache.nixos.org からダウンロード
         fastConnection = false;

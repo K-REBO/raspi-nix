@@ -191,7 +191,14 @@
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
     trusted-users = [ "root" "rpi" ];
+    # ビルド時の一時ディレクトリを SD カード上の /tmp (512M tmpfs) ではなく
+    # 外付けディスクに置く (npm/cargo のビルドで容量不足になるため)
+    build-dir = "/mnt/disk/nix-build-tmp";
   };
+
+  systemd.tmpfiles.rules = [
+    "d /mnt/disk/nix-build-tmp 0755 root root -"
+  ];
 
   # gen28 に合わせて /tmp を tmpfs にマウント (512M)
   # これがないと切り替え時に tmp.mount を停止しようとして失敗する

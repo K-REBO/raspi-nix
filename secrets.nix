@@ -1,6 +1,6 @@
 let
   userKey   = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGvI3ILtsXArrQgy59WCJAsrGxS52qm82Sq/0vYYzicS bido@nixos";
-  systemKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIENLj6dfUbzh6GcOA6STApoVdWLv2ZMLlILBLiH1Zx5d root@nixpi";
+  systemKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFAw5N69TZAM54ymUO/stJUe61v7GyRZnrSP4Gb+DXm8 root@nixpi";
   allKeys   = [ userKey systemKey ];
 in
 {
